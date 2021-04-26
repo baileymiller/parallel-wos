@@ -18,13 +18,13 @@ public:
     Image(Vec2i res);
 
     /**
-     * Access the pixel data located at idx
+     * Set the pixel data located at idx
      * 
      * @param idx
      * 
      * @return the RGB data stored at idx
      */
-    Vec3f& operator()(int idx);
+    void set(int idx, Vec3f value);
 
     /**
      * Access the pixel data located at x,y

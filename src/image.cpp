@@ -2,18 +2,18 @@
 #include <pwos/image.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include <stb_image_write.h>
 
-Image::Image(Vec2i res)
+Image::Image(Vec2i res): res(res)
 {
     data = vector<Vec3f>(res.x() * res.y());
 }
 
-Vec3f& Image::operator()(int idx)
+void Image::set(int idx, Vec3f value)
 {
-    return data[idx];
+    data[idx] = value;
 }
-
 
 Vec3f& Image::operator()(int x, int y)
 {
@@ -23,16 +23,17 @@ Vec3f& Image::operator()(int x, int y)
 
 void Image::save(string filename)
 {
-    float* raw_data = new float[res.x() * res.y() * 3];
     int i = 0;
+    float* raw_data = new float[res.x() * res.y() * 3]();
     for (Vec3f rgb : data)
     {
         raw_data[i++] = rgb.x();
         raw_data[i++] = rgb.y();
         raw_data[i++] = rgb.z();
     }
-    bool success = stbi_write_hdr(filename.c_str(), res.x(), res.y(), 3, (const float*) &raw_data);
+    bool success = stbi_write_hdr(filename.append(".hdr").c_str(), res.x(), res.y(), 3, (const float*) raw_data);
     THROW_IF(!success, "Failed to write " + filename);
+    delete raw_data;
 }
 
 Vec2i Image::getRes()

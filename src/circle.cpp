@@ -17,7 +17,7 @@ Vec2f Circle::getClosestPoint(Vec2f o)
         return c + Vec2f(0, r);
     }
 
-    return c + v.normalized() * r;
+    return c + (v * r / vnorm);
 }
 
 Vec3f Circle::getBoundaryCondition()

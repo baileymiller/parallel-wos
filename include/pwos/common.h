@@ -66,11 +66,13 @@ enum RelativePositionType
 
 enum IntegratorType
 {
+    DISTANCE,
     WOS
 };
 
 const map<string, IntegratorType> StrToIntegratorType({
-    { "wos", IntegratorType::WOS }
+    { "wos", IntegratorType::WOS },
+    { "dist", IntegratorType::DISTANCE }
 });
 
 //========================//
@@ -97,6 +99,6 @@ inline Vec2f getXYCoords(Vec2i pixel, Vec4f window, Vec2i res)
     float dy = window[3] - window[1];
     return Vec2f(
         pixel.x() / float(res.x()) * dx + window[0],
-        (res.y() - pixel.y() / float(res.y())) * dy + window[1]
+        (res.y() - pixel.y() - 1) / float(res.y()) * dy + window[1]
     );
 }

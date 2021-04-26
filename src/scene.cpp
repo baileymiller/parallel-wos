@@ -7,6 +7,12 @@ Scene::Scene(string filename)
     ifstream in(filename.c_str());
     THROW_IF(!in.is_open(), "Unable to open file " + filename);
 
+    size_t lastSlashIndex = filename.find_last_of("/");
+    string fileWithoutPath = filename.substr(lastSlashIndex + 1, filename.size() - 1);
+
+    size_t lastPeriodIndex= fileWithoutPath.find_last_of(".");
+    name = fileWithoutPath.substr(0, lastPeriodIndex);
+
     string line;
     string cell;
     stringstream ss;
@@ -66,6 +72,8 @@ Scene::Scene(string filename)
         // construct circle
         circles.push_back(make_shared<Circle>(c, r, b));
     }
+
+    std::cout << "Scene loading finished. Loaded " << circles.size() << " circles." << std::endl;
 }
 
 Vec2f Scene::getClosestPoint(Vec2f o, Vec3f &b)

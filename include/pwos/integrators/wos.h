@@ -11,7 +11,7 @@ class WoS: public Integrator
 public:
     WoS(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16): Integrator(scene, res, spp) {};
 
-    void render() override
+    void virtual render() override
     {
         #pragma omp parallel
         {
@@ -31,16 +31,15 @@ public:
                 {
                     pixelValue += u_hat(coord, sampler);
                 }
-                (*image)(i) = pixelValue / float(spp);
+                image->set(i, pixelValue / float(spp));
             }
         }
     }
 
-    void save() override
+    void virtual save() override
     {
-        string filename = "wos";
-        filename += "_scene=" + scene->getName();
-        filename += "_spp=" + std::to_string(spp);
+        string filename = "wos_scene=" + scene->getName() + "_spp=" + to_string(spp);
+        image->save(filename);
     }
 
 private:

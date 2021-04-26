@@ -3,12 +3,15 @@
 #include <pwos/argparse.h>
 #include <pwos/image.h>
 #include <pwos/integrators/wos.h>
+#include <pwos/integrators/distance.h>
 #include <pwos/scene.h>
 
 shared_ptr<Integrator> buildIntegrator(string type, Scene scene, Vec2i res, int spp)
 {
     switch(StrToIntegratorType.at(type))
     {
+        case IntegratorType::DISTANCE:
+            return make_shared<Distance>(scene, res, spp);
         case IntegratorType::WOS:
         default:
             return make_shared<WoS>(scene, res, spp);
@@ -35,12 +38,13 @@ int main(int argc, char* argv[])
     string integratorType = parser.getStr("integrator", "wos");
 
     // create the scene
-    Scene scene(parser.getMain(0));
+    Scene scene(parser.getMain(0, "Must specify scene file ./pwos [scene file]"));
 
     // construct the integrator.
     shared_ptr<Integrator> integrator = buildIntegrator(integratorType, scene, res, spp);
 
     // run the integrator
     integrator->render();
+
     integrator->save();
 }

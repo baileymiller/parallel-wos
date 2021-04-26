@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(ParallelWoS)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_BUILD_TYPE DEBUG)
 
 # External Libraries
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
@@ -24,14 +25,18 @@ set(pwos_headers
     include/pwos/fwd.h
     include/pwos/image.h
     include/pwos/integrator.h
+    include/pwos/integrators/wos.h
+    include/pwos/integrators/distance.h
     include/pwos/scene.h
 )
 
 set(pwos_srcs
     src/argparse.cpp
+    src/bbox.cpp
     src/circle.cpp
     src/image.cpp
     src/integrator.cpp
+    src/scene.cpp
 )
 
 # library with all of the source + header files above

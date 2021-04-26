@@ -124,7 +124,7 @@ public:
      * 
      * @returns the ith main argument (not including the program name in indexing)
      */
-    string getMain(int i);
+    string getMain(int i, string errMsg = "");
 
 private:
     // main args (i.e. no flags, in order they appear)

@@ -133,8 +133,12 @@ Vec4f ArgParse::getVec4f(string id, Vec4f defaultValue)
     return v;
 }
 
-string ArgParse::getMain(int i)
+string ArgParse::getMain(int i, string errMsg)
 {
-    THROW_IF(i >= main.size(), "No main argument found at index " + std::to_string(i) + " max index is " + std::to_string(main.size()));
+    if (errMsg.empty())
+    {
+        errMsg = "No main argument found at index " + std::to_string(i) + " max index is " + std::to_string(main.size());
+    }
+    THROW_IF(i >= main.size(), errMsg);
     return main[i];
 }
