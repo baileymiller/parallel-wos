@@ -6,7 +6,12 @@ set(CMAKE_BUILD_TYPE DEBUG)
 
 # External Libraries
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
 find_package(OpenMP)
+if (OPENMP_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
 
 # Source Code
 include_directories(
@@ -53,9 +58,9 @@ add_library(
 )
 
 # add executables
-add_executable(wos src/main.cpp)
+add_executable(pwos src/main.cpp)
 target_link_libraries(
-    wos
+    pwos
     pwos_lib
     Eigen3::Eigen
     OpenMP::OpenMP_CXX

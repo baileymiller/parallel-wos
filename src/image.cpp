@@ -1,6 +1,7 @@
 #include <pwos/common.h>
 #include <pwos/progressBar.h>
 #include <pwos/image.h>
+#include <pwos/stats.h>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
@@ -27,18 +28,18 @@ void Image::render(Vec4f window, int nthreads, Rand2DFunction f)
     ProgressBar progress;
     progress.start(getNumPixels());
 
-    #pragma omp parallel num_threads(nthreads) shared(window)
+    #pragma omp parallel num_threads(nthreads)
     {
         size_t tid = omp_get_thread_num();
         pcg32 sampler = getSampler(tid);
-
-        #pragma omp for
+        #pragma omp for 
         for (int i = 0; i < getNumPixels(); i++)
         {
-            Vec2i pixel = getPixelCoordinates(i);
-            Vec2f coord = getXYCoords(pixel, window, res);
-            set(i, f(coord, sampler));
-
+            Stats::TIME_THREAD(tid, [this, i, f, window, &sampler]() -> void {
+                Vec2i pixel = getPixelCoordinates(i);
+                Vec2f coord = getXYCoords(pixel, window, res);
+                set(i, f(coord, sampler));
+            });
             #pragma omp critical
             {
                 progress++;

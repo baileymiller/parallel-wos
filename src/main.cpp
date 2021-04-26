@@ -49,6 +49,7 @@ int main(int argc, char* argv[])
     Scene scene(parser.getMain(0, "Must specify scene file ./pwos [scene file]"));
 
     Stats::reset();
+    Stats::initThreadTimers(nthreads);
 
     // build and run the integrator.
     shared_ptr<Integrator> integrator = buildIntegrator(integratorType, scene, res, spp, nthreads);
