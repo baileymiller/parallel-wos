@@ -21,11 +21,10 @@ public:
      * Computes the closest point on the circle.
      * 
      * @param o     point from which to compute "closest point"
-     * @param b     boundary condition at the closest point
      * 
      * @return the closest point on the circle to "o"
      */
-    Vec2f getClosestPoint(Vec2f o, Vec3f &b);
+    Vec2f getClosestPoint(Vec2f o);
 
     /**
      * Get boundary condition.

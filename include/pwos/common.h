@@ -3,6 +3,8 @@
 #include <pwos/fwd.h>
 #include <eigen3/Eigen/Dense>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <map>
 #include <math.h>
 #include <memory>
@@ -19,6 +21,11 @@ using std::vector;
 using std::cout;
 using std::endl;
 using std::map;
+using std::ifstream;
+using std::stringstream;
+using std::getline;
+using std::stof;
+using std::to_string;
 
 // Macros / Constants
 #define _USE_MATH_DEFINES
@@ -39,11 +46,23 @@ inline void THROW_IF(bool cond, string message)
     if (cond) throw std::runtime_error(message);
 }
 
+// epsilon used for general purpose calculations
+#define EPSILON 1e-6
+
+// the epsilon shell around boundary used to terminate random walks
 #define BOUNDARY_EPSILON 1e-2
 
 //========================//
 // Types                  //
 //========================//
+enum RelativePositionType
+{
+    LEFT,
+    RIGHT,
+    INSIDE,
+    ABOVE,
+    BELOW
+};
 
 enum IntegratorType
 {
@@ -78,6 +97,6 @@ inline Vec2f getXYCoords(Vec2i pixel, Vec4f window, Vec2i res)
     float dy = window[3] - window[1];
     return Vec2f(
         pixel.x() / float(res.x()) * dx + window[0],
-        pixel.y() / float(res.y()) * dy + window[1]
+        (res.y() - pixel.y() / float(res.y())) * dy + window[1]
     );
 }

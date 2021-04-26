@@ -11,15 +11,6 @@ class Scene
 {
 public:
     /**
-     * Construct a scene from a list of circles.
-     * 
-     * @param name      the name of the scene
-     * @param window    the x,y ranges for the scene (top left x, top left y, bottom right x, bottom right y)
-     * @param circles   a vector containing circles
-     */
-    Scene(string name, Vec4f window, vector<Circle> circles);
-
-    /**
      * Construct a scene from a scene file. File is a list of circles with boundary data,
      * which must be formatted as follows:
      * 
