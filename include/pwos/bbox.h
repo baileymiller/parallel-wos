@@ -12,10 +12,10 @@ public:
     /**
      * Construct a bounding box.
      * 
-     * @param p     top left corner of the bounding box
-     * @param q     top right corner of the bounding box
+     * @param _bl     bottom left corner of the bounding box
+     * @param _tr     top right corner of the bounding box
      */
-    BBox(Vec2f p, Vec2f q);
+    BBox(Vec2f _bl, Vec2f _tr);
 
     /**
      * Computes the closest point on the bounding box.
@@ -26,7 +26,47 @@ public:
      */
     Vec2f getClosestPoint(Vec2f o);
 
+    inline float top()
+    {
+        return _tr.y();
+    }
+
+    inline float bottom()
+    {
+        return _bl.y();
+    }
+
+    inline float right()
+    {
+        return _tr.x();
+    }
+
+    inline float left()
+    {
+        return _bl.x();
+    }
+
+    inline Vec2f bl()
+    {
+        return _bl;
+    }
+    
+    inline Vec2f tl()
+    {
+        return Vec2f(left(), top());
+    }
+
+    inline Vec2f br()
+    {
+        return Vec2f(bottom(), right());
+    }
+
+    inline Vec2f tr()
+    {
+        return _tr;
+    }
+
 private:
-    // top left corner and bottom right corner of bounding box.
-    Vec2f p, q;
+    // corners of the bounding box.
+    Vec2f _bl, _tr;
 };

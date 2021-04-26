@@ -21,12 +21,14 @@ set(pwos_headers
     include/pwos/argparse.h
     include/pwos/bbox.h
     include/pwos/circle.h
+    include/pwos/closestPointGrid.h
     include/pwos/common.h
     include/pwos/fwd.h
     include/pwos/image.h
     include/pwos/integrator.h
     include/pwos/integrators/wos.h
     include/pwos/integrators/distance.h
+    include/pwos/progressBar.h
     include/pwos/scene.h
 )
 
@@ -34,6 +36,7 @@ set(pwos_srcs
     src/argparse.cpp
     src/bbox.cpp
     src/circle.cpp
+    src/closestPointGrid.cpp
     src/image.cpp
     src/integrator.cpp
     src/scene.cpp

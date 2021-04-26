@@ -37,6 +37,12 @@ public:
     Vec3f& operator()(int x, int y);
 
     /**
+     * Helper function for rendering an image.
+     * 
+     */
+    void render(Vec4f window, int nthreads, Rand2DFunction f);
+
+    /**
      * Save the image as an HDR image.
      * 
      * @param filename
