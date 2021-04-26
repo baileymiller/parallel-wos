@@ -2,6 +2,7 @@
 #include <pwos/closestPointGrid.h>
 #include <pwos/scene.h>
 #include <pwos/progressBar.h>
+#include <pwos/stats.h>
 
 GridData::GridData() {};
 
@@ -12,14 +13,14 @@ ClosestPointGrid::ClosestPointGrid(shared_ptr<Scene> scene, Vec2f bl, Vec2f tr, 
     float width = tr.x() - bl.x();
     float height = tr.y() - bl.y();
 
-    gridWidth = ceil(width / cellLength);
-    gridHeight = ceil(height / cellLength);
+    gridWidth = ceil(width / cellLength) + 1;
+    gridHeight = ceil(height / cellLength) + 1;
 
     grid = new GridData[gridWidth * gridHeight];
 
     ProgressBar progress;
 
-    progress.start(gridHeight * gridWidth);
+    progress.start(gridHeight);
     #pragma omp parallel for num_threads(nthreads)
     for (int idy = 0; idy < gridHeight; idy++) {
     for (int idx = 0; idx < gridWidth; idx++)
@@ -34,20 +35,21 @@ ClosestPointGrid::ClosestPointGrid(shared_ptr<Scene> scene, Vec2f bl, Vec2f tr, 
         grid[id].dist = (closestPoint - gp).norm();
         grid[id].b = make_shared<Vec3f>(b);
 
+    }
         #pragma omp critical
         {
             progress++;
         }
-    }
     }
     progress.finish();
 }
 
 bool ClosestPointGrid::getDistToClosestPoint(Vec2f p, Vec3f &b, float &dist, float &gridDist) const
 {
+    Stats::INCREMENT_COUNT(StatType::GRID_QUERY);
     // ensure that p is within grid, otherwise return false
-    if (p.x() < bl.x() || tr.x() < p.x()) return false;
-    if (p.y() < bl.y() || tr.y() < p.y()) return false;
+    if (p.x() < bl.x() || tr.x() <= p.x()) return false;
+    if (p.y() < bl.y() || tr.y() <= p.y()) return false;
 
     // get offset within grid
     float xOffset = p.x() - bl.x();

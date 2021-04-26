@@ -9,7 +9,9 @@
 class Distance: public Integrator
 {
 public:
-    Distance(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16): Integrator(scene, res, spp) {};
+    Distance(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1)
+    : Integrator("dist", scene, res, spp, nthreads)
+    {};
 
     void virtual render() override
     {
@@ -19,11 +21,5 @@ public:
             float dist = (scene->getClosestPoint(coord, b) - coord).norm();
             return Vec3f(dist, dist, dist);
         });
-    }
-
-    void virtual save() override
-    {
-        string filename = "distance_scene=" + scene->getName();
-        image->save(filename);
     }
 };

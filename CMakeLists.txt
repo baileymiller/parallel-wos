@@ -30,6 +30,7 @@ set(pwos_headers
     include/pwos/integrators/distance.h
     include/pwos/progressBar.h
     include/pwos/scene.h
+    include/pwos/stats.h
 )
 
 set(pwos_srcs
@@ -40,6 +41,7 @@ set(pwos_srcs
     src/image.cpp
     src/integrator.cpp
     src/scene.cpp
+    src/stats.cpp
 )
 
 # library with all of the source + header files above

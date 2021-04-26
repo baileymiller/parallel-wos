@@ -27,7 +27,7 @@ void Image::render(Vec4f window, int nthreads, Rand2DFunction f)
     ProgressBar progress;
     progress.start(getNumPixels());
 
-    #pragma omp parallel num_threads(nthreads)
+    #pragma omp parallel num_threads(nthreads) shared(window)
     {
         size_t tid = omp_get_thread_num();
         pcg32 sampler = getSampler(tid);

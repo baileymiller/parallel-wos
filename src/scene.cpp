@@ -1,6 +1,7 @@
 #include <pwos/common.h>
 #include <pwos/scene.h>
 #include <pwos/circle.h>
+#include <pwos/stats.h>
 
 Scene::Scene(string filename)
 {
@@ -78,6 +79,8 @@ Scene::Scene(string filename)
 
 Vec2f Scene::getClosestPoint(Vec2f o, Vec3f &b)
 {
+    Stats::INCREMENT_COUNT(StatType::CLOSEST_POINT_QUERY);
+
     // TODO: use KD tree to speed this up.
     float dist = std::numeric_limits<float>::max();
     Vec2f closestPoint;

@@ -10,7 +10,9 @@
 class GridVisual: public Integrator
 {
 public:
-    GridVisual(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16): Integrator(scene, res, spp) {};
+    GridVisual(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1)
+    : Integrator("gridviz", scene, res, spp, nthreads) 
+    {};
 
     void virtual render() override
     {
@@ -39,11 +41,5 @@ public:
                 return Vec3f(-1.0f, -1.0f, -1.0f);
             }
         });
-    }
-
-    void virtual save() override
-    {
-        string filename = "gridvisual_scene=" + scene->getName();
-        image->save(filename);
     }
 };
