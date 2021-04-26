@@ -13,27 +13,15 @@ public:
 
     void virtual render() override
     {
-        #pragma omp parallel
+        image->render(scene->getWindow(), 24, [this](Vec2f coord, pcg32& sampler) -> Vec3f
         {
-            size_t tid = omp_get_thread_num();
-            pcg32 sampler = getSampler(tid);
-
-            Vec4f window = scene->getWindow();
-            Vec2i res = image->getRes();
-
-            #pragma omp for
-            for (int i = 0; i < image->getNumPixels(); i++)
+            Vec3f pixelValue(0, 0, 0);
+            for (int j = 0; j < spp; j++)
             {
-                Vec2i pixel = image->getPixelCoordinates(i);
-                Vec2f coord = getXYCoords(pixel, window, res);
-                Vec3f pixelValue(0, 0, 0);
-                for (int j = 0; j < spp; j++)
-                {
-                    pixelValue += u_hat(coord, sampler);
-                }
-                image->set(i, pixelValue / float(spp));
+                pixelValue += u_hat(coord, sampler);
             }
-        }
+            return pixelValue / float(spp);
+        });
     }
 
     void virtual save() override

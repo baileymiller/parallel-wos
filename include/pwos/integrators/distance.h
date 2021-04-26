@@ -13,17 +13,12 @@ public:
 
     void virtual render() override
     {
-        Vec4f window = scene->getWindow();
-        Vec2i res = image->getRes();
-
-        for (int i = 0; i < image->getNumPixels(); i++)
+        image->render(scene->getWindow(), 1, [this](Vec2f coord, pcg32& _) -> Vec3f
         {
-            Vec2i pixel = image->getPixelCoordinates(i);
-            Vec2f coord = getXYCoords(pixel, window, res);
             Vec3f b;
             float dist = (scene->getClosestPoint(coord, b) - coord).norm();
-            image->set(i, Vec3f(dist, dist, dist));
-        }
+            return Vec3f(dist, dist, dist);
+        });
     }
 
     void virtual save() override

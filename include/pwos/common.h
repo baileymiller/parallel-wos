@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <chrono>
 #include <map>
 #include <math.h>
 #include <memory>
@@ -36,6 +37,8 @@ typedef Eigen::Vector<float, 2> Vec2f;
 typedef Eigen::Vector<float, 3> Vec3f;
 typedef Eigen::Vector<float, 4> Vec4f;
 
+typedef std::function<Vec3f(Vec2f, pcg32&)> Rand2DFunction;
+
 inline void THROW(string message)
 {
     throw std::runtime_error(message);
@@ -66,13 +69,15 @@ enum RelativePositionType
 
 enum IntegratorType
 {
+    GRID_VISUAL,
     DISTANCE,
     WOS
 };
 
 const map<string, IntegratorType> StrToIntegratorType({
-    { "wos", IntegratorType::WOS },
-    { "dist", IntegratorType::DISTANCE }
+    { "gridviz", IntegratorType::GRID_VISUAL },
+    { "dist", IntegratorType::DISTANCE },
+    { "wos", IntegratorType::WOS }
 });
 
 //========================//

@@ -4,12 +4,15 @@
 #include <pwos/image.h>
 #include <pwos/integrators/wos.h>
 #include <pwos/integrators/distance.h>
+#include <pwos/integrators/gridVisual.h>
 #include <pwos/scene.h>
 
 shared_ptr<Integrator> buildIntegrator(string type, Scene scene, Vec2i res, int spp)
 {
     switch(StrToIntegratorType.at(type))
     {
+        case IntegratorType::GRID_VISUAL:
+            return make_shared<GridVisual>(scene, res, spp);
         case IntegratorType::DISTANCE:
             return make_shared<Distance>(scene, res, spp);
         case IntegratorType::WOS:
