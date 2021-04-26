@@ -11,16 +11,19 @@ find_package(OpenMP)
 include_directories(
     ${PROJECT_SOURCE_DIR}/src
     ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/include/integrators
     ${PROJECT_SOURCE_DIR}/ext/pcg32
     ${PROJECT_SOURCE_DIR}/ext/stb_image
 )
 
 set(pwos_headers
+    include/pwos/argparse.h
     include/pwos/bbox.h
     include/pwos/circle.h
     include/pwos/common.h
     include/pwos/fwd.h
     include/pwos/image.h
+    include/pwos/integrator.h
     include/pwos/scene.h
 )
 
@@ -28,6 +31,7 @@ set(pwos_srcs
     src/argparse.cpp
     src/circle.cpp
     src/image.cpp
+    src/integrator.cpp
 )
 
 # library with all of the source + header files above

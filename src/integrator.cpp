@@ -1,12 +1,15 @@
 #include <pwos/common.h>
+
+#include <pwos/circle.h>
 #include <pwos/integrator.h>
+#include <pwos/integrators/wos.h>
 #include <pwos/image.h>
 #include <pwos/scene.h>
 
-Integrator::Integrator(Scene scene, Vec2f res, int spp): spp(spp) 
+Integrator::Integrator(Scene scene, Vec2i res, int spp): spp(spp) 
 {
     this->scene = make_shared<Scene>(scene);
-    image = make_shared<Image>(res.x(), res.y());
+    image = make_shared<Image>(res);
 }
 
 void Integrator::render()

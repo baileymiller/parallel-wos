@@ -5,7 +5,9 @@
 enum ArgType
 {
     INT,
-    STR
+    STR,
+    VEC4f,
+    VEC2i
 };
 
 /**
@@ -15,7 +17,8 @@ struct Arg
 {
     string id;
     ArgType type;
-    string value;
+    vector<string> values;
+
     bool isSet = false;
 
     /**
@@ -32,12 +35,19 @@ struct Arg
     Arg(std::string id, ArgType type);
 
     /**
-     * Set the value for the arg.
+     * Set the value for the arg (assumes one value, overrwrites values[0])
      * 
      * @param value
      * 
      */
     void setValue(string value);
+
+    /**
+     * Push a new value onto the values array (does not assume only one value)
+     * 
+     * @param value
+     */
+    void pushValue(string value);
 };
 
 /**
@@ -82,7 +92,30 @@ public:
      * 
      * @returns the string corresponding to id or default value.
      */
-    string getStr(string str, string defaultValue);
+    string getStr(string id, string defaultValue);
+
+    /**
+     * Return the Vec2i corresponding to the flag with id "id".
+     * Throws an error if arg corresponding to id is not a vec2i
+     * 
+     * @param id
+     * @param defaultValue
+     * 
+     * @returns the vec2i corresponding to id or default value
+     */
+
+    Vec2i getVec2i(string id, Vec2i defaultValue);
+
+    /**
+     * Return the Vec4f corresponding to the flag with id "id".
+     * Throws an error if arg corresponding to id is not a vec4f
+     * 
+     * @param id
+     * @param defaultValue
+     * 
+     * @returns the vec4f corresponding to id or default value
+     */
+    Vec4f getVec4f(string id, Vec4f defaultValue);
 
     /**
      * Returns the string corresponding to the ith non-flagged argument

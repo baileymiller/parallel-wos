@@ -23,7 +23,7 @@ Vec3f& Image::operator()(int x, int y)
 
 void Image::save(string filename)
 {
-
+    // TODO:
 }
 
 Vec2i Image::getRes()
@@ -39,5 +39,5 @@ int Image::getNumPixels()
 
 Vec2i Image::getPixelCoordinates(int i)
 {
-    return Vec2f(i % res.x(), i / res.x());
+    return Vec2i(i % res.x(), i / res.x());
 }

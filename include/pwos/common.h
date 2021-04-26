@@ -29,7 +29,7 @@ typedef Eigen::Vector<float, 2> Vec2f;
 typedef Eigen::Vector<float, 3> Vec3f;
 typedef Eigen::Vector<float, 4> Vec4f;
 
-inline void THROW(bool cond, string message)
+inline void THROW(string message)
 {
     throw std::runtime_error(message);
 }
@@ -40,6 +40,19 @@ inline void THROW_IF(bool cond, string message)
 }
 
 #define BOUNDARY_EPSILON 1e-2
+
+//========================//
+// Types                  //
+//========================//
+
+enum IntegratorType
+{
+    WOS
+};
+
+const map<string, IntegratorType> StrToIntegratorType({
+    { "wos", IntegratorType::WOS }
+});
 
 //========================//
 // Helper functions       //
@@ -59,7 +72,7 @@ inline Vec2f sampleCirclePoint(float R, float rand)
     return Vec2f(cos(theta), sin(theta)) * R;
 }
 
-Vec2f getXYCoords(Vec2i pixel, Vec4f window, Vec2f res)
+inline Vec2f getXYCoords(Vec2i pixel, Vec4f window, Vec2i res)
 {
     float dx = window[2] - window[0];
     float dy = window[3] - window[1];

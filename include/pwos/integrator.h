@@ -15,7 +15,7 @@ public:
      * @param res       resolution of image created
      * @param spp       number of samples to use per pixel
      */
-    Integrator(Scene scene, Vec2f res = Vec2f(128, 128), int spp = 16);
+    Integrator(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16);
 
     /**
      * Renders a scene and saves intermediate result within integrator (under img.)

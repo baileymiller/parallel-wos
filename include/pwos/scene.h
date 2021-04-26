@@ -67,5 +67,6 @@ private:
     Vec4f window;
 
     // list of circles
-    vector<Circle> circles;
+    vector<shared_ptr<Circle>> circles;
+
 };

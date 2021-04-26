@@ -1,5 +1,7 @@
 #pragma once
+
 #include <pwos/common.h>
+
 #include <pwos/image.h>
 #include <pwos/integrator.h>
 #include <pwos/scene.h>
@@ -7,6 +9,8 @@
 class WoS: public Integrator
 {
 public:
+    WoS(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16): Integrator(scene, res, spp) {};
+
     void render() override
     {
         #pragma omp parallel
@@ -15,7 +19,7 @@ public:
             pcg32 sampler = getSampler(tid);
 
             Vec4f window = scene->getWindow();
-            Vec2f res = image->getRes();
+            Vec2i res = image->getRes();
 
             #pragma omp for
             for (int i = 0; i < image->getNumPixels(); i++)
