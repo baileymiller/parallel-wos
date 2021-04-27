@@ -9,6 +9,7 @@
 #include <map>
 #include <math.h>
 #include <memory>
+#include <mutex>
 #include <omp.h>
 #include <pcg32.h>
 #include <random>
@@ -31,6 +32,10 @@ using std::to_string;
 // Macros / Constants
 #define _USE_MATH_DEFINES
 
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::milliseconds ms;
+typedef std::chrono::duration<float> fsec;
+
 typedef Eigen::Vector<float, Eigen::Dynamic> Vectorf;
 typedef Eigen::Vector<int, 2> Vec2i;
 typedef Eigen::Vector<float, 2> Vec2f;
@@ -38,6 +43,7 @@ typedef Eigen::Vector<float, 3> Vec3f;
 typedef Eigen::Vector<float, 4> Vec4f;
 
 typedef std::function<Vec3f(Vec2f, pcg32&)> Rand2DFunction;
+typedef std::function<void()> FunctionBlock;
 
 inline void THROW(string message)
 {
@@ -69,16 +75,24 @@ enum RelativePositionType
 
 enum IntegratorType
 {
+    WOG,
     GRID_VISUAL,
     DISTANCE,
     WOS
 };
 
 const map<string, IntegratorType> StrToIntegratorType({
+    { "wog", IntegratorType::WOG },
     { "gridviz", IntegratorType::GRID_VISUAL },
     { "dist", IntegratorType::DISTANCE },
     { "wos", IntegratorType::WOS }
 });
+
+enum StatType
+{
+    CLOSEST_POINT_QUERY,
+    GRID_QUERY
+};
 
 //========================//
 // Helper functions       //
@@ -107,3 +121,8 @@ inline Vec2f getXYCoords(Vec2i pixel, Vec4f window, Vec2i res)
         (res.y() - pixel.y() - 1) / float(res.y()) * dy + window[1]
     );
 }
+
+// stats/profiling
+
+#define CLOSEST_POINT_QUERIES "closest_point_queries"
+#define CLOSEST_POINT_GRID_QUERIES "closest_point_grid_queries"

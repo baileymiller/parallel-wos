@@ -9,11 +9,13 @@
 class WoS: public Integrator
 {
 public:
-    WoS(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16): Integrator(scene, res, spp) {};
+    WoS(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1)
+    : Integrator("wos", scene, res, spp, nthreads) 
+    {};
 
     void virtual render() override
     {
-        image->render(scene->getWindow(), 24, [this](Vec2f coord, pcg32& sampler) -> Vec3f
+        image->render(scene->getWindow(), nthreads, [this](Vec2f coord, pcg32& sampler) -> Vec3f
         {
             Vec3f pixelValue(0, 0, 0);
             for (int j = 0; j < spp; j++)
@@ -24,16 +26,10 @@ public:
         });
     }
 
-    void virtual save() override
-    {
-        string filename = "wos_scene=" + scene->getName() + "_spp=" + to_string(spp);
-        image->save(filename);
-    }
-
 private:
-    float rrProb = 0.95;
+    float rrProb = 0.99;
 
-    Vec3f u_hat(Vec2f x0, pcg32 &sampler)
+    Vec3f u_hat(Vec2f x0, pcg32 &sampler) const
     {
         Vec2f p = x0;
         Vec3f b;

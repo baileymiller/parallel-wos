@@ -2,10 +2,6 @@
 
 #include <pwos/common.h>
 
-typedef std::chrono::high_resolution_clock Time;
-typedef std::chrono::milliseconds ms;
-typedef std::chrono::duration<float> fsec;
-
 class ProgressBar {
 public:
   int barWidth = 70;

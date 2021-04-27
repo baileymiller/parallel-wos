@@ -2,22 +2,27 @@
 
 #include <pwos/argparse.h>
 #include <pwos/image.h>
+#include <pwos/scene.h>
+#include <pwos/stats.h>
+
 #include <pwos/integrators/wos.h>
 #include <pwos/integrators/distance.h>
 #include <pwos/integrators/gridVisual.h>
-#include <pwos/scene.h>
+#include <pwos/integrators/wog.h>
 
-shared_ptr<Integrator> buildIntegrator(string type, Scene scene, Vec2i res, int spp)
+shared_ptr<Integrator> buildIntegrator(string type, Scene scene, Vec2i res, int spp, int nthreads)
 {
     switch(StrToIntegratorType.at(type))
     {
         case IntegratorType::GRID_VISUAL:
-            return make_shared<GridVisual>(scene, res, spp);
+            return make_shared<GridVisual>(scene, res, spp, nthreads);
         case IntegratorType::DISTANCE:
-            return make_shared<Distance>(scene, res, spp);
+            return make_shared<Distance>(scene, res, spp, nthreads);
+        case IntegratorType::WOG:
+            return make_shared<WoG>(scene, res, spp, nthreads);
         case IntegratorType::WOS:
         default:
-            return make_shared<WoS>(scene, res, spp);
+            return make_shared<WoS>(scene, res, spp, nthreads);
     }
 }
 
@@ -43,11 +48,14 @@ int main(int argc, char* argv[])
     // create the scene
     Scene scene(parser.getMain(0, "Must specify scene file ./pwos [scene file]"));
 
-    // construct the integrator.
-    shared_ptr<Integrator> integrator = buildIntegrator(integratorType, scene, res, spp);
+    Stats::reset();
+    Stats::initThreadTimers(nthreads);
 
-    // run the integrator
+    // build and run the integrator.
+    shared_ptr<Integrator> integrator = buildIntegrator(integratorType, scene, res, spp, nthreads);
     integrator->render();
+
+    Stats::report();
 
     integrator->save();
 }
