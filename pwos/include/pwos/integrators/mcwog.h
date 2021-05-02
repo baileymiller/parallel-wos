@@ -6,73 +6,8 @@
 #include <pwos/integrator.h>
 #include <pwos/scene.h>
 #include <pwos/closestPointGrid.h>
-
-/**
- * Holds all of the data needed for a random walk, allows random walks to be 
- * progressed by several different threads at once.
- */
-struct RandomWalk
-{
-    // id of the parent thread
-    int parentId;
-
-    // the pixel id for this thread
-    int pixelId;
-
-    // the current position of the random walk
-    Vec2f p;
-
-    // the throughput of the current path
-    float f;
-
-    // the number of steps on the walk so far
-    int currSteps;
-
-    // the final value for the walk (i.e. boundary value when it terminates)
-    float val;
-
-    // finish the random walk
-    bool finished;
-
-    /**
-     * Initialize a random walk.
-     * 
-     * @param parentId      the thread id of the parent who started this walk
-     * @param pixelId       the pixel id that this random walk corresponds to
-     * @param p             the current position of the random walk
-     */
-    RandomWalk(int parentId, int pixelId, Vec2f p)
-    : parentId(parentId)
-    , pixelId(pixelId)
-    , p(p)
-    , f(1.0f)
-    , currSteps(0)
-    , finished(false) {};
-
-    /**
-     * Progress the random walk by taking a step
-     * 
-     * @param stepVec       offset vector to add to the current position
-     * @param fUpdatel      an update to the throughput 
-     */
-    void takeStep(Vec2f stepVec, float fUpdate)
-    {
-        currSteps++;
-        f *= fUpdate;
-        p += stepVec;
-    }
-
-    /**
-     * Finish the random walk.
-     * 
-     * @param g       the boundary value at the end of the random walk
-     */
-    void finish(float g)
-    {
-        val = f * g;
-        finished = true;
-    }
-};
+#include <pwos/randomWalk.h>
+#include <pwos/progressBar.h>
 
 class MCWoG: public Integrator
 {
@@ -80,6 +15,7 @@ public:
     float cellLength, minGridR;
     float gridWidth, gridHeight;
     int ncols, nrows;
+    float rrProb = 0.95;
 
     MCWoG(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1)
     : Integrator("mcwog", scene, res, spp, nthreads)
@@ -103,7 +39,6 @@ public:
         gridHeight = dy / nrows;
 
         // Determine the size of the cells in each grid 
-        Vec2i res = image->getRes();
         cellLength = std::min(dx / res.x(), dy / res.y());
 
         // The minimum length of R before we switch to doing CPQ's and stop looking in grid
@@ -117,11 +52,22 @@ public:
         Vec2f bl(window[0], window[1]);
         Vec2f tr(window[2], window[3]);
 
+        // setup random walk manager
+        std::shared_ptr<RandomWalkManager> rwm = make_shared<RandomWalkManager>(nthreads, bl, tr, gridWidth, gridHeight, ncols, nrows);
+
+        // global counter to keep track of how many random walks remain
+        int walksRemaining = image->getNumPixels() * spp;
+
+        // keep track of progress
+        ProgressBar progress;
+        progress.start(walksRemaining);
+
         #pragma omp parallel num_threads(nthreads)
         {
             size_t tid = omp_get_thread_num();
-
-            // make grid
+            pcg32 sampler = getSampler(tid);
+            
+            // initialize grid
             int col = tid % ncols;
             int row = tid / ncols;
             Vec2f gridBL(
@@ -129,57 +75,124 @@ public:
                 bl.y() + row * gridHeight
             );
             Vec2f gridTR = gridBL + Vec2f(gridWidth, gridHeight);
-            ClosestPointGrid* cpg = new ClosestPointGrid(scene, gridBL, gridTR, cellLength, 1);
+            shared_ptr<ClosestPointGrid> cpg = make_shared<ClosestPointGrid>(scene, gridBL, gridTR, cellLength, 1);
 
-            // initialize
-        }
+            // initialize random walkers managter
+            rwm->setThreadId(tid);
 
-        image->render(scene->getWindow(), nthreads, [this](Vec2f coord, pcg32& sampler) -> Vec3f
-        {
-            Vec3f pixelValue(0, 0, 0);
-            for (int j = 0; j < spp; j++)
+            // determine block of pixels for thread to render
+            initializeWalks(rwm, image->getRes(), col, row, ncols, nrows, window, spp, tid);
+
+            // push walks for thread's pixels into queue
+            vector<shared_ptr<RandomWalk>> readyToWrite;
+            while (true)
             {
-                pixelValue += u_hat(coord, sampler);
+                // advance existing walks
+                while (rwm->hasActiveWalks())
+                {
+                    shared_ptr<RandomWalk> rw = rwm->popActiveWalk();
+                    advanceWalk(scene, rw, cpg, sampler, minGridR, rrProb);
+                    rwm->pushWalk(rw);
+                }
+
+                // process finished walks
+                int numCompleted = 0;
+                while (rwm->hasTerminatedWalks())
+                {
+                    shared_ptr<RandomWalk> rw = rwm->popTerminatedWalk();
+                    if (rw->nSamplesLeft == 0)
+                    {
+                        // no samples left, just terminate random walk
+                        readyToWrite.push_back(rw);
+                    }
+                    else
+                    {
+                        // reinitialize the walk and push it back into the random walk queue.
+                        rw->initializeWalk();
+                        rwm->pushWalk(rw);
+                    }
+                    numCompleted++;
+                }
+
+                #pragma omp critical
+                {
+                    walksRemaining = walksRemaining - numCompleted;
+                    progress += numCompleted;
+                }
+
+                // break if no more walks are active anywhere
+                if (walksRemaining <= 0) break;
             }
-            return pixelValue / float(spp);
-        });
+
+            // write all completed random walks to pixels
+            for (shared_ptr<RandomWalk> randomWalk: readyToWrite)
+            {
+                image->set(randomWalk->pixelId, randomWalk->val / float(spp));
+            }
+        }
+        progress.finish();
     }
 
 private:
-    float rrProb = 0.99;
-
-    Vec3f u_hat(Vec2f x0, pcg32 &sampler) const
+    inline static void initializeWalks(shared_ptr<RandomWalkManager> rwm, Vec2i res, int col, int row, int ncols, int nrows, Vec4f window, int spp, size_t tid)
     {
-        Vec2f p = x0;
-        Vec3f b;
-        float R, dist, gridDist;
-        float f = 1.0f;
-        do
+        int gridPixelWidth = ceil(res.x() / float(ncols));
+        int gridPixelHeight = ceil(res.y() / float(nrows));
+
+        int startX = col * gridPixelWidth;
+        int stopX = std::min(startX + gridPixelWidth, res.x());
+
+        int startY = row * gridPixelHeight;
+        int stopY = std::min(startY + gridPixelHeight, res.y());
+
+        for (int i = startX; i < stopX; i++)
         {
-            if (cpg->getDistToClosestPoint(p, b, dist, gridDist))
+            for (int j = startY; j < stopY; j++)
             {
-                // conservative distance to nearest boundary
-                R = dist - gridDist;
-                if (R < minGridR)
-                {
-                    // grid point too close to boundary, just do our own cpq
-                    R = (scene->getClosestPoint(p, b) - p).norm();
-                    if (R < BOUNDARY_EPSILON) break;
-                }
+                Vec2f coord = getXYCoords(Vec2i(i, j), window, res);
+                shared_ptr<RandomWalk> rw = make_shared<RandomWalk>(tid, i + j * res.y(), coord, spp);
+                rw->initializeWalk();
+                rwm->pushWalk(rw->parentId, rw);
             }
-            else
-            {
-                // if we end up here, the point is not within the grid. do a normal closest point query.
-                R = (scene->getClosestPoint(p, b) - p).norm();
-                if (R < BOUNDARY_EPSILON) break;
-            }
-
-            if (sampler.nextFloat() < (1.0f - rrProb)) break;
-            f /= rrProb;
-            p += sampleCirclePoint(R, sampler.nextFloat());
         }
-        while (true);
+    }
 
-        return R < BOUNDARY_EPSILON ? b : Vec3f(0, 0, 0); 
+    inline static void advanceWalk(shared_ptr<Scene> scene, shared_ptr<RandomWalk> rw, shared_ptr<ClosestPointGrid> cpg, pcg32 &sampler, float minGridR, float rrProb)
+    {
+        Vec2f p = rw->p;
+        Vec3f b;
+        float R, dist, gridDist; 
+
+        if (cpg->getDistToClosestPoint(p, b, dist, gridDist))
+        {
+            // conservative distance to nearest boundary
+            R = dist - gridDist;
+            if (R < minGridR)
+            {
+                // grid point too close to boundary, just do our own cpq
+                R = (scene->getClosestPoint(p, b) - p).norm();
+            }
+        }
+        else
+        {
+            // if we end up here, the point is not within the grid. do a normal closest point query.
+            R = (scene->getClosestPoint(p, b) - p).norm();
+        }
+
+        if (R < BOUNDARY_EPSILON)
+        {
+            // within epsilon of boundary, terminate walk
+            rw->terminate(b);
+        }
+        else if (sampler.nextFloat() < (1.0f - rrProb))
+        {
+            // walk terminated due to russian roulette (value is set to 0)
+            rw->terminate(Vec3f(0.0f, 0.0f, 0.0f));
+        }
+        else
+        {
+            // walk continues, take another step
+            rw->takeStep(sampleCirclePoint(R, sampler.nextFloat()), 1.0f / rrProb);
+        }
     }
 };

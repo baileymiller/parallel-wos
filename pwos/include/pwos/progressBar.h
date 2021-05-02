@@ -36,9 +36,16 @@ public:
     set(float(workCompleted) / totalWork);
     return *this;
   }
+
   void operator++()
   {
-    workCompleted ++;
+    workCompleted++;
+    set(float(workCompleted) / totalWork);
+  }
+
+  void operator+=(int a)
+  {
+    workCompleted += a;
     set(float(workCompleted) / totalWork);
   }
 
