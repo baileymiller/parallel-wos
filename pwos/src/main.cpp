@@ -9,6 +9,7 @@
 #include <pwos/integrators/distance.h>
 #include <pwos/integrators/gridVisual.h>
 #include <pwos/integrators/wog.h>
+#include <pwos/integrators/mcwog.h>
 
 shared_ptr<Integrator> buildIntegrator(string type, Scene scene, Vec2i res, int spp, int nthreads)
 {
@@ -18,6 +19,8 @@ shared_ptr<Integrator> buildIntegrator(string type, Scene scene, Vec2i res, int 
             return make_shared<GridVisual>(scene, res, spp, nthreads);
         case IntegratorType::DISTANCE:
             return make_shared<Distance>(scene, res, spp, nthreads);
+        case IntegratorType::MCWOG:
+            return make_shared<MCWoG>(scene, res, spp, nthreads);
         case IntegratorType::WOG:
             return make_shared<WoG>(scene, res, spp, nthreads);
         case IntegratorType::WOS:

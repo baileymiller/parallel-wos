@@ -55,6 +55,11 @@ inline void THROW_IF(bool cond, string message)
     if (cond) throw std::runtime_error(message);
 }
 
+inline void WARN_IF(bool cond, string message)
+{
+    if (cond) std::cerr << message << std::endl;
+}
+
 // epsilon used for general purpose calculations
 #define EPSILON 1e-6
 
@@ -75,6 +80,7 @@ enum RelativePositionType
 
 enum IntegratorType
 {
+    MCWOG,
     WOG,
     GRID_VISUAL,
     DISTANCE,
@@ -82,6 +88,7 @@ enum IntegratorType
 };
 
 const map<string, IntegratorType> StrToIntegratorType({
+    { "mcwog", IntegratorType::MCWOG },
     { "wog", IntegratorType::WOG },
     { "gridviz", IntegratorType::GRID_VISUAL },
     { "dist", IntegratorType::DISTANCE },
