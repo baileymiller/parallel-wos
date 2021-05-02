@@ -34,8 +34,10 @@ set(pwos_headers
     include/pwos/fwd.h
     include/pwos/image.h
     include/pwos/integrator.h
-    include/pwos/integrators/wos.h
     include/pwos/integrators/distance.h
+    include/pwos/integrators/mcwog.h
+    include/pwos/integrators/wos.h
+    include/pwos/integrators/wog.h
     include/pwos/progressBar.h
     include/pwos/scene.h
     include/pwos/stats.h
