@@ -39,6 +39,7 @@ set(pwos_headers
     include/pwos/integrators/wos.h
     include/pwos/integrators/wog.h
     include/pwos/progressBar.h
+    include/pwos/randomWalk.h
     include/pwos/scene.h
     include/pwos/stats.h
 )
@@ -50,6 +51,7 @@ set(pwos_srcs
     src/closestPointGrid.cpp
     src/image.cpp
     src/integrator.cpp
+    src/randomWalk.cpp
     src/scene.cpp
     src/stats.cpp
 )

@@ -14,12 +14,15 @@
 #include <pcg32.h>
 #include <random>
 #include <string>
+#include <deque>
 #include <vector>
 
 using std::string;
 using std::shared_ptr;
+using std::unique_ptr;
 using std::make_shared;
 using std::vector;
+using std::deque;
 using std::cout;
 using std::endl;
 using std::map;

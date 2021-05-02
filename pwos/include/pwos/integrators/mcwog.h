@@ -7,43 +7,132 @@
 #include <pwos/scene.h>
 #include <pwos/closestPointGrid.h>
 
+/**
+ * Holds all of the data needed for a random walk, allows random walks to be 
+ * progressed by several different threads at once.
+ */
+struct RandomWalk
+{
+    // id of the parent thread
+    int parentId;
+
+    // the pixel id for this thread
+    int pixelId;
+
+    // the current position of the random walk
+    Vec2f p;
+
+    // the throughput of the current path
+    float f;
+
+    // the number of steps on the walk so far
+    int currSteps;
+
+    // the final value for the walk (i.e. boundary value when it terminates)
+    float val;
+
+    // finish the random walk
+    bool finished;
+
+    /**
+     * Initialize a random walk.
+     * 
+     * @param parentId      the thread id of the parent who started this walk
+     * @param pixelId       the pixel id that this random walk corresponds to
+     * @param p             the current position of the random walk
+     */
+    RandomWalk(int parentId, int pixelId, Vec2f p)
+    : parentId(parentId)
+    , pixelId(pixelId)
+    , p(p)
+    , f(1.0f)
+    , currSteps(0)
+    , finished(false) {};
+
+    /**
+     * Progress the random walk by taking a step
+     * 
+     * @param stepVec       offset vector to add to the current position
+     * @param fUpdatel      an update to the throughput 
+     */
+    void takeStep(Vec2f stepVec, float fUpdate)
+    {
+        currSteps++;
+        f *= fUpdate;
+        p += stepVec;
+    }
+
+    /**
+     * Finish the random walk.
+     * 
+     * @param g       the boundary value at the end of the random walk
+     */
+    void finish(float g)
+    {
+        val = f * g;
+        finished = true;
+    }
+};
+
 class MCWoG: public Integrator
 {
 public:
     float cellLength, minGridR;
-    shared_ptr<ClosestPointGrid> cpg;
+    float gridWidth, gridHeight;
+    int ncols, nrows;
 
     MCWoG(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1)
     : Integrator("mcwog", scene, res, spp, nthreads)
     {
+        // Determine how many cols/rows the scene will be divided into
         float log2nthreads = log2(nthreads);
         int n = floor(log2nthreads);
         int numUsableThreads = int(pow(2, n));
         WARN_IF(log2nthreads != n, "MC WoG only utilizes 2^n threads. Using " + to_string(numUsableThreads) + " of the " + to_string(nthreads) + " available threads.");
 
-        int ncols = (n == 0) || (n % 2 != 0) ? n + 1 : n;
-        int nrows = numUsableThreads / ncols;
+        ncols = (n == 0) || (n % 2 != 0) ? n + 1 : n;
+        nrows = numUsableThreads / ncols;
         
+        // Set the dimensions of the grid/region that each thread is responsible for
         Vec4f window = scene.getWindow();
-        float cellWidth =
-    };
-
-    void virtual render() override
-    {
-        return;
-        // preprocess by computing closest point grid
-        Vec4f window = scene->getWindow();
         Vec2f bl(window[0], window[1]);
         Vec2f tr(window[2], window[3]);
         float dx = tr.x() - bl.x();
         float dy = tr.y() - bl.y();
+        gridWidth = dx / ncols;
+        gridHeight = dy / nrows;
 
-        // ensures cells are basically width of a pixel
-        // precompute grid
+        // Determine the size of the cells in each grid 
         Vec2i res = image->getRes();
         cellLength = std::min(dx / res.x(), dy / res.y());
+
+        // The minimum length of R before we switch to doing CPQ's and stop looking in grid
         minGridR = sqrt(2) * cellLength;
-        cpg = make_shared<ClosestPointGrid>(scene, bl, tr, cellLength, nthreads);
+    };
+
+    void virtual render() override
+    {
+        // preprocess by computing closest point grid
+        Vec4f window = scene->getWindow();
+        Vec2f bl(window[0], window[1]);
+        Vec2f tr(window[2], window[3]);
+
+        #pragma omp parallel num_threads(nthreads)
+        {
+            size_t tid = omp_get_thread_num();
+
+            // make grid
+            int col = tid % ncols;
+            int row = tid / ncols;
+            Vec2f gridBL(
+                bl.x() + col * gridWidth,
+                bl.y() + row * gridHeight
+            );
+            Vec2f gridTR = gridBL + Vec2f(gridWidth, gridHeight);
+            ClosestPointGrid* cpg = new ClosestPointGrid(scene, gridBL, gridTR, cellLength, 1);
+
+            // initialize
+        }
 
         image->render(scene->getWindow(), nthreads, [this](Vec2f coord, pcg32& sampler) -> Vec3f
         {

@@ -1,0 +1,1 @@
+/usr/bin/c++   -fopenmp -g    CMakeFiles/pwos.dir/src/main.cpp.o  -o pwos  libpwos_lib.a 

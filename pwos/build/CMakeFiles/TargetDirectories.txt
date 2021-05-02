@@ -1,0 +1,4 @@
+/home/bailey/code/classes/15-618/parallel-wos/pwos/build/CMakeFiles/rebuild_cache.dir
+/home/bailey/code/classes/15-618/parallel-wos/pwos/build/CMakeFiles/edit_cache.dir
+/home/bailey/code/classes/15-618/parallel-wos/pwos/build/CMakeFiles/pwos.dir
+/home/bailey/code/classes/15-618/parallel-wos/pwos/build/CMakeFiles/pwos_lib.dir
