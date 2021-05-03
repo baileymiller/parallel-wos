@@ -40,10 +40,8 @@ void Image::render(Vec4f window, int nthreads, Rand2DFunction f)
                 Vec2f coord = getXYCoords(pixel, window, res);
                 set(i, f(coord, sampler));
             });
-            #pragma omp critical
-            {
-                progress++;
-            }
+
+            progress++;
         }
     }
     progress.finish();

@@ -16,7 +16,9 @@
 #include <string>
 #include <deque>
 #include <vector>
+#include <mutex>
 
+using std::mutex;
 using std::string;
 using std::unique_ptr;
 using std::make_unique;

@@ -18,30 +18,23 @@ ClosestPointGrid::ClosestPointGrid(shared_ptr<Scene> scene, Vec2f bl, Vec2f tr, 
 
     grid = new GridData[gridWidth * gridHeight];
 
-    ProgressBar progress;
-
-    progress.start(gridHeight);
     #pragma omp parallel for num_threads(nthreads)
     for (int idy = 0; idy < gridHeight; idy++) {
-    for (int idx = 0; idx < gridWidth; idx++)
-    {
-        // index of the grid point in the array
-        int id = idx + idy * gridWidth;
 
-        // compute grid data
-        Vec3f b;
-        Vec2f gp = getGridPointCoordinates(Vec2i(idx, idy));
-        Vec2f closestPoint = scene->getClosestPoint(gp, b);
-        grid[id].dist = (closestPoint - gp).norm();
-        grid[id].b = make_shared<Vec3f>(b);
-
-    }
-        #pragma omp critical
+        for (int idx = 0; idx < gridWidth; idx++)
         {
-            progress++;
+            // index of the grid point in the array
+            int id = idx + idy * gridWidth;
+
+            // compute grid data
+            Vec3f b;
+            Vec2f gp = getGridPointCoordinates(Vec2i(idx, idy));
+            Vec2f closestPoint = scene->getClosestPoint(gp, b);
+            grid[id].dist = (closestPoint - gp).norm();
+            grid[id].b = make_shared<Vec3f>(b);
+
         }
     }
-    progress.finish();
 }
 
 bool ClosestPointGrid::getDistToClosestPoint(Vec2f p, Vec3f &b, float &dist, float &gridDist) const

@@ -12,6 +12,7 @@ public:
   std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 
   ProgressBar() {}
+
   ProgressBar(int barWidth): barWidth(barWidth) {}
 
   void start() {
@@ -32,21 +33,26 @@ public:
 
   ProgressBar operator++(int)
   {
+    #pragma omp atomic
     workCompleted++;
-    set(float(workCompleted) / totalWork);
+
+    #pragma omp critical
+    {
+      set(float(workCompleted) / totalWork);
+    }
     return *this;
   }
 
-  void operator++()
+  ProgressBar operator+=(int a)
   {
-    workCompleted++;
-    set(float(workCompleted) / totalWork);
-  }
-
-  void operator+=(int a)
-  {
+    #pragma omp atomic
     workCompleted += a;
-    set(float(workCompleted) / totalWork);
+
+    #pragma omp critical
+    {
+      set(float(workCompleted) / totalWork);
+    }
+    return (*this);
   }
 
   void finish() {

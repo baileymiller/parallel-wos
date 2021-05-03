@@ -71,7 +71,7 @@ struct RandomWalk
 };
 
 /**
- * Wrapper around dequeue with OMP pragmas to ensure atomicity.
+ * Wrapper around dequeue with mutex to ensure atomicity.
  */
 class RandomWalkQueue
 {
@@ -104,6 +104,10 @@ public:
      * @return the size of the  queue.
      */
     int size();
+
+private:
+    // lock for queue
+    mutex lock;
 };
 
 /**
@@ -130,6 +134,15 @@ public:
 
     // walks that have terminated by reaching a boundary or by being killed in russian roulette
     vector<shared_ptr<RandomWalkQueue>> terminatedWalks;
+
+    /**
+     * 
+     * Build a copy of the random walk manager from existing random walk manager.
+     * 
+     * @param rwm       existing random walk manager
+     * @param tid       thread id
+     */
+    RandomWalkManager(shared_ptr<RandomWalkManager> rwm, size_t tid = 0);
 
     /**
      * Build random walk queues
@@ -192,4 +205,10 @@ public:
      * @param rw        random walk
      */
     void pushWalk(shared_ptr<RandomWalk> rw);
+
+    /**
+     * Print counts for all of the queues.
+     */
+    void printCounts();
+
 };

@@ -16,6 +16,7 @@ public:
     float gridWidth, gridHeight;
     int ncols, nrows;
     float rrProb = 0.95;
+    int numUsableThreads;
 
     MCWoG(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1)
     : Integrator("mcwog", scene, res, spp, nthreads)
@@ -23,7 +24,7 @@ public:
         // Determine how many cols/rows the scene will be divided into
         float log2nthreads = log2(nthreads);
         int n = floor(log2nthreads);
-        int numUsableThreads = int(pow(2, n));
+        numUsableThreads = int(pow(2, n));
         WARN_IF(log2nthreads != n, "MC WoG only utilizes 2^n threads. Using " + to_string(numUsableThreads) + " of the " + to_string(nthreads) + " available threads.");
 
         ncols = (n == 0) || (n % 2 != 0) ? n + 1 : n;
@@ -53,7 +54,9 @@ public:
         Vec2f tr(window[2], window[3]);
 
         // setup random walk manager
-        std::shared_ptr<RandomWalkManager> rwm = make_shared<RandomWalkManager>(nthreads, bl, tr, gridWidth, gridHeight, ncols, nrows);
+        std::shared_ptr<RandomWalkManager> sharedRWM = make_shared<RandomWalkManager>(nthreads, bl, tr, gridWidth, gridHeight, ncols, nrows);
+
+        spp = 1;
 
         // global counter to keep track of how many random walks remain
         int walksRemaining = image->getNumPixels() * spp;
@@ -61,12 +64,12 @@ public:
         // keep track of progress
         ProgressBar progress;
         progress.start(walksRemaining);
-
-        #pragma omp parallel num_threads(nthreads)
+        #pragma omp parallel num_threads(numUsableThreads)
         {
             size_t tid = omp_get_thread_num();
             pcg32 sampler = getSampler(tid);
-            
+            std::shared_ptr<RandomWalkManager> rwm = make_shared<RandomWalkManager>(sharedRWM, tid);
+
             // initialize grid
             int col = tid % ncols;
             int row = tid / ncols;
@@ -75,16 +78,20 @@ public:
                 bl.y() + row * gridHeight
             );
             Vec2f gridTR = gridBL + Vec2f(gridWidth, gridHeight);
+
             shared_ptr<ClosestPointGrid> cpg = make_shared<ClosestPointGrid>(scene, gridBL, gridTR, cellLength, 1);
 
             // initialize random walkers managter
             rwm->setThreadId(tid);
+
+            std::cout << rwm->tid << std::endl;
 
             // determine block of pixels for thread to render
             initializeWalks(rwm, image->getRes(), col, row, ncols, nrows, window, spp, tid);
 
             // push walks for thread's pixels into queue
             vector<shared_ptr<RandomWalk>> readyToWrite;
+
             while (true)
             {
                 // advance existing walks
@@ -114,15 +121,15 @@ public:
                     numCompleted++;
                 }
 
-                #pragma omp critical
-                {
-                    walksRemaining = walksRemaining - numCompleted;
-                    progress += numCompleted;
-                }
+                #pragma omp atomic
+                walksRemaining = walksRemaining - numCompleted;
+
+                progress += numCompleted;
 
                 // break if no more walks are active anywhere
                 if (walksRemaining <= 0) break;
             }
+            std::cout << "finished!" << std::endl;
 
             // write all completed random walks to pixels
             for (shared_ptr<RandomWalk> randomWalk: readyToWrite)

@@ -1,5 +1,6 @@
 #include <pwos/common.h>
 #include <pwos/randomWalk.h>
+#include <unistd.h>
 
 RandomWalk::RandomWalk(int parentId, int pixelId, Vec2f p, int nSamples)
     : parentId(parentId)
@@ -37,32 +38,48 @@ RandomWalkQueue::RandomWalkQueue()
 
 void RandomWalkQueue::pushBack(shared_ptr<RandomWalk> rw)
 {
-    #pragma omp critical
+    lock.lock(); 
     {
         q->push_back(rw);
     }
+    lock.unlock();
 }
 
 shared_ptr<RandomWalk> RandomWalkQueue::popFront()
 {
     shared_ptr<RandomWalk> rw;
-    #pragma omp critical
+    lock.lock();
     {
         rw = q->front();
         q->pop_front();
     }
+    lock.unlock();
     return rw;
 }
 
 int RandomWalkQueue::size()
 {
     int qsize;
-    #pragma omp critical
+    lock.lock();
     {
         qsize = q->size();
     }
+    lock.unlock();
     return qsize;
 }
+
+RandomWalkManager::RandomWalkManager(shared_ptr<RandomWalkManager> rwm, size_t tid)
+: nthreads(rwm->nthreads)
+, bl(rwm->bl)
+, tr(rwm->tr)
+, gridWidth(rwm->gridWidth)
+, gridHeight(rwm->gridHeight)
+, ncols(rwm->ncols)
+, nrows(rwm->nrows)
+, tid(tid)
+, activeWalks(rwm->activeWalks)
+, terminatedWalks(rwm->terminatedWalks)
+{}
 
 RandomWalkManager::RandomWalkManager(int nthreads, Vec2f bl, Vec2f tr, float gridWidth, float gridHeight, int ncols, int nrows)
 : nthreads(nthreads)
@@ -138,3 +155,15 @@ void RandomWalkManager::pushWalk(shared_ptr<RandomWalk> rw)
     }
 }
 
+void RandomWalkManager::printCounts()
+{
+    int activeWalkCount = 0;
+    int terminatedWalkCount = 0;
+    for (int i = 0; i < activeWalks.size(); i++)
+    {
+        std::cout << "tid #" << i << ": (activeWalks="<< activeWalks[i]->size() << ", terminatedWalks=" << terminatedWalks[i]->size() << std::endl;
+        activeWalkCount += activeWalks[i]->size();
+        terminatedWalkCount += terminatedWalks[i]->size();
+    }
+    std::cout << "totals: (activeWalks=" << activeWalkCount << ", terminatedWalks=" << terminatedWalkCount  << ")" << std::endl;
+}
