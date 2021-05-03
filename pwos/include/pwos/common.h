@@ -14,12 +14,19 @@
 #include <pcg32.h>
 #include <random>
 #include <string>
+#include <deque>
 #include <vector>
+#include <mutex>
+#include <numeric>
 
+using std::mutex;
 using std::string;
+using std::unique_ptr;
+using std::make_unique;
 using std::shared_ptr;
 using std::make_shared;
 using std::vector;
+using std::deque;
 using std::cout;
 using std::endl;
 using std::map;
@@ -55,6 +62,11 @@ inline void THROW_IF(bool cond, string message)
     if (cond) throw std::runtime_error(message);
 }
 
+inline void WARN_IF(bool cond, string message)
+{
+    if (cond) std::cerr << message << std::endl;
+}
+
 // epsilon used for general purpose calculations
 #define EPSILON 1e-6
 
@@ -75,6 +87,7 @@ enum RelativePositionType
 
 enum IntegratorType
 {
+    MCWOG,
     WOG,
     GRID_VISUAL,
     DISTANCE,
@@ -82,13 +95,23 @@ enum IntegratorType
 };
 
 const map<string, IntegratorType> StrToIntegratorType({
+    { "mcwog", IntegratorType::MCWOG },
     { "wog", IntegratorType::WOG },
     { "gridviz", IntegratorType::GRID_VISUAL },
     { "dist", IntegratorType::DISTANCE },
     { "wos", IntegratorType::WOS }
 });
 
-enum StatType
+enum class StatTimerType
+{
+    TOTAL,
+    QUEUE,
+    CLOSEST_POINT_GRID,
+    CLOSEST_POINT_QUERY,
+    SETUP
+};
+
+enum class StatType
 {
     CLOSEST_POINT_QUERY,
     GRID_QUERY

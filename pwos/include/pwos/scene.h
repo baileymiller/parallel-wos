@@ -14,8 +14,8 @@ public:
      * Construct a scene from a scene file. File is a list of circles with boundary data,
      * which must be formatted as follows:
      * 
-     * tlx, tly, brx, bry                   // scene range (top left x, top left y, bottom right x, bottom right y)
-     * x1, y1, r1, br1, bg1, bb1        // first circle of the scene (x pos, y pos, radius, rgb boundary value)
+     * blx, bly, trx, try                   // scene range (top left x, top left y, bottom right x, bottom right y)
+     * x1, y1, r1, br1, bg1, bb1            // first circle of the scene (x pos, y pos, radius, rgb boundary value)
      * x2, y2, r2, br2, bg2, bb2
      * ...
      * xn, yn, rn, brn, bgn, bbn        // nth circle of the scene
@@ -31,13 +31,14 @@ public:
      * 
      * @param o     point from which to compute the closest point
      * @param b     boundary condition at the closest point
+     * @param tid   thread that is calling this function, optional
      * 
      * @returns the closest point to "o"
      */
-    Vec2f getClosestPoint(Vec2f o, Vec3f &b);
+    Vec2f getClosestPoint(Vec2f o, Vec3f &b, int tid = 0);
 
     /**
-     * Returns the window of the scene window=(top left x, top left y, bottom right x, bottom right y)
+     * Returns the window of the scene window=(bottom left x, bottom left y, top right x, top right y)
      * 
      * @return window
      */

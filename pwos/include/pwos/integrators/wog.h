@@ -55,8 +55,10 @@ private:
         float f = 1.0f;
         do
         {
-            if (cpg->getDistToClosestPoint(p, b, dist, gridDist))
+            if (cpg->pointInGridRange(p))
             {
+                cpg->getDistToClosestPoint(p, b, dist, gridDist);
+
                 // conservative distance to nearest boundary
                 R = dist - gridDist;
                 if (R < minGridR)

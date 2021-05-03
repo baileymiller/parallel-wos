@@ -15,7 +15,7 @@ public:
 
     void virtual render() override
     {
-        image->render(scene->getWindow(), 1, [this](Vec2f coord, pcg32& _) -> Vec3f
+        image->render(scene->getWindow(), nthreads, [this](Vec2f coord, pcg32& _) -> Vec3f
         {
             Vec3f b;
             float dist = (scene->getClosestPoint(coord, b) - coord).norm();

@@ -23,7 +23,7 @@ class ImageWrapper:
 
     def get(self, x, y):
         ''' Gets the value of the image in an RGB tuple at the position (x,y) for x,y \in [0, 1]'''        
-        return self.pixels[x * float(self.width), y * float(self.height)]
+        return tuple( v / 255.0 for v in self.pixels[x * float(self.width), self.height - y * float(self.height) - 1])
 
 class RandomColor:
     ''' Use perlin noise to construct a random RGB color gradient. Each color channel has its own 
@@ -163,8 +163,9 @@ class SceneGenerator:
 
         # set min / max radius
         min_dimension = min(self.width, self.height)
-        self.max_radius = opts.get("max_radius", 0.05) * min_dimension
-        self.min_radius = opts.get("min_radius", 0.005) * min_dimension
+        self.max_radius = opts.get("max_radius", 0.01) * min_dimension
+        self.min_radius = opts.get("min_radius", 0.01) * min_dimension
+        self.extra_spacing = opts.get("extra_spacing", 0.01) * min_dimension
 
         if self.width == 0 or self.height == 0:
             raise Exception("Width and height must be non-zero.")
@@ -175,16 +176,14 @@ class SceneGenerator:
         '''
 
         # find the minimum R s.t. circle at o does not overlap
-        minR = float("inf")
+        maxR = float("inf")
         for circle in self.circles:
             tempR = circle.dist_to_circle(o)
             if tempR < 0:
                 return 0
-            elif tempR < minR:
-                minR = tempR
-
-        # further reduce minimum R if it is above the maxR allowed by the scene
-        return min(minR, self.max_radius)
+            elif tempR < maxR:
+                maxR = tempR
+        return maxR
 
     def generate_random_circle(self):
         '''
@@ -194,15 +193,30 @@ class SceneGenerator:
         y = random()
         c = np.array([x * self.width, y * self.height])
         max_radius = self.get_max_radius(c)
-        if max_radius < self.min_radius: 
+
+        # take into account extra spacing that we require.
+        max_radius -= self.extra_spacing
+
+        # overlapping radius or not enough room considering extra spacing, return false
+        if max_radius < 0:
             return False
 
-        r = (max_radius - self.min_radius) * random() + self.min_radius
+        # if the max non-overlapping radius is greater than max radius for the scene, set it to max radius
+        if max_radius > self.max_radius:
+            max_radius = self.max_radius
+
+        # random radius will be smaller than min        
+        dr = max_radius - self.min_radius
+        if dr < 0:
+            return False
+
+        r =  dr * random() + self.min_radius
+
         b = self.values.get(x, y)
         self.circles.append(Circle(c, r, b))
         return True
 
-    def generate_scene(self, max_attempts = 15):
+    def generate_scene(self, max_attempts = 25):
         '''
             Generate a scene with num_circle random circles. Only attempt to generate a circle 15 times before moving on.
         '''
@@ -241,6 +255,7 @@ if __name__ == "__main__":
     parser.add_argument("--minr", type=float, nargs="?", help="Min radius relative to min scene dimension")
     parser.add_argument("--o", type=str, nargs="?", help="output filename")
     parser.add_argument("--odir", type=str, nargs="?", help="output dir")
+    parser.add_argument("--xs", type=float, nargs="?", help="extra spacing")
 
 
     args = parser.parse_args()
@@ -252,7 +267,8 @@ if __name__ == "__main__":
         "height": args.h,
         "num_circles": args.ncircs,
         "maxr": args.maxr,
-        "minr": args.minr
+        "minr": args.minr,
+        "extra_spacing": args.xs
     }
     opts = {k: v for k, v in opts.items() if v is not None}
 

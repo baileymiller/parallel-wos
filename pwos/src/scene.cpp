@@ -77,13 +77,16 @@ Scene::Scene(string filename)
     std::cout << "Scene loading finished. Loaded " << circles.size() << " circles." << std::endl;
 }
 
-Vec2f Scene::getClosestPoint(Vec2f o, Vec3f &b)
+Vec2f Scene::getClosestPoint(Vec2f o, Vec3f &b, int tid)
 {
-    Stats::INCREMENT_COUNT(StatType::CLOSEST_POINT_QUERY);
+
+    Vec2f closestPoint;
+
+Stats::INCREMENT_COUNT(StatType::CLOSEST_POINT_QUERY);
+Stats::TIME_THREAD(tid, StatTimerType::CLOSEST_POINT_QUERY, [this, o, &closestPoint, &b]() -> void {
 
     // TODO: use KD tree to speed this up.
     float dist = std::numeric_limits<float>::max();
-    Vec2f closestPoint;
     for (shared_ptr<Circle> c : circles)
     {
         Vec2f tempClosestPoint = c->getClosestPoint(o);
@@ -95,6 +98,7 @@ Vec2f Scene::getClosestPoint(Vec2f o, Vec3f &b)
             b = c->getBoundaryCondition();
         }
     }
+});
     return closestPoint;
 }
 

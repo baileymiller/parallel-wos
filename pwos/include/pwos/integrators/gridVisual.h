@@ -26,14 +26,15 @@ public:
         // ensures cells are basically width of 4 pixels
         Vec2i res = image->getRes();
         float cellLength = 4 * std::min(dx / res.x(), dy / res.y());
-        ClosestPointGrid cpg(scene, bl, tr, cellLength, 1);
+        ClosestPointGrid cpg(scene, bl, tr, cellLength, nthreads);
 
-        image->render(scene->getWindow(), 1, [this, cpg](Vec2f coord, pcg32& _) -> Vec3f
+        image->render(scene->getWindow(), nthreads, [this, cpg](Vec2f coord, pcg32& _) -> Vec3f
         {
-            Vec3f b;
-            float dist, gridDist;
-            if (cpg.getDistToClosestPoint(coord, b, dist, gridDist))
+            if (cpg.pointInGridRange(coord))
             {
+                Vec3f b;
+                float dist, gridDist;
+                cpg.getDistToClosestPoint(coord, b, dist, gridDist);
                 return b * dist;
             }
             else
