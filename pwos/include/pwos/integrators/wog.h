@@ -10,17 +10,15 @@
 class WoG: public Integrator
 {
 public:
+    float rrProb = 0.99;
     float cellLength, minGridR;
     shared_ptr<ClosestPointGrid> cpg;
 
     WoG(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1)
     : Integrator("wog", scene, res, spp, nthreads)
-    {};
-
-    void virtual render() override
     {
         // preprocess by computing closest point grid
-        Vec4f window = scene->getWindow();
+        Vec4f window = this->scene->getWindow();
         Vec2f bl(window[0], window[1]);
         Vec2f tr(window[2], window[3]);
         float dx = tr.x() - bl.x();
@@ -28,11 +26,13 @@ public:
 
         // ensures cells are basically width of a pixel
         // precompute grid
-        Vec2i res = image->getRes();
         cellLength = std::min(dx / res.x(), dy / res.y());
         minGridR = sqrt(2) * cellLength;
-        cpg = make_shared<ClosestPointGrid>(scene, bl, tr, cellLength, nthreads);
+        cpg = make_shared<ClosestPointGrid>(this->scene, bl, tr, cellLength, nthreads);
+    };
 
+    void virtual render() override
+    {
         image->render(scene->getWindow(), nthreads, [this](Vec2f coord, pcg32& sampler) -> Vec3f
         {
             Vec3f pixelValue(0, 0, 0);
@@ -45,8 +45,6 @@ public:
     }
 
 private:
-    float rrProb = 0.99;
-
     Vec3f u_hat(Vec2f x0, pcg32 &sampler) const
     {
         Vec2f p = x0;

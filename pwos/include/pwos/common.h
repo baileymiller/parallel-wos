@@ -18,6 +18,7 @@
 #include <vector>
 #include <mutex>
 #include <numeric>
+#include <algorithm>
 
 using std::mutex;
 using std::string;

@@ -78,11 +78,11 @@ void Stats::report()
     std::cout << "|     Profiling Results                 |" << std::endl;
     std::cout << "-----------------------------------------" << std::endl;
 
-    std::cout << "Number of Closest Point Queries:\t\t" << numClosestPointQueries << std::endl;
-    std::cout << "Number of Grid Queries:\t\t" << numGridQueries << std::endl;
+    std::cout << "Number of Closest Point Queries: " << numClosestPointQueries << std::endl;
+    std::cout << "Number of Grid Queries:" << numGridQueries << std::endl;
 
-    std::cout << "\t total time:" << totalTime.count() << std::endl;
-    std::cout << "\t setup time:" << setupTime.count() << std::endl;
+    std::cout << "Total time:" << totalTime.count() << std::endl;
+    std::cout << "Setup time:" << setupTime.count() << std::endl;
 
     // average of thread times
     int nthreads = threadTime.size();
@@ -94,16 +94,20 @@ void Stats::report()
         threadCPGTimeF.push_back(threadCPGTime[i].count());
         threadCPQTimeF.push_back(threadCPQTime[i].count());
     }
+    auto [minThreadTime, maxThreadTime] = std::minmax_element(threadTimeF.begin(), threadTimeF.end());
+    auto [minQueueTime, maxQueueTime] = std::minmax_element(threadQueueTimeF.begin(), threadQueueTimeF.end());
+    auto [minCPGTime, maxCPGTime] = std::minmax_element(threadCPGTimeF.begin(), threadCPGTimeF.end());
+    auto [minCPQTime, maxCPQTime] = std::minmax_element(threadCPQTimeF.begin(), threadCPQTimeF.end());
 
     float avgThreadTime = std::accumulate(threadTimeF.begin(), threadTimeF.end(), 0.0f) / float(nthreads);
     float avgQueueTime = std::accumulate(threadQueueTimeF.begin(), threadQueueTimeF.end(), 0.0f) / float(nthreads);
     float avgCPGTime = std::accumulate(threadCPGTimeF.begin(), threadCPGTimeF.end(), 0.0f) / float(nthreads);
     float avgCPQTime = std::accumulate(threadCPQTimeF.begin(), threadCPQTimeF.end(), 0.0f) / float(nthreads);
 
-    std::cout << "\t avg time per thread: " << avgThreadTime << std::endl;
-    std::cout << "\t avg queue time: " << avgQueueTime << std::endl;
-    std::cout << "\t avg CP Grid time: " << avgCPGTime << std::endl;
-    std::cout << "\t avg CP Query time: " << avgCPQTime << std::endl;
+    std::cout << "Time per thread: " << "( avg=" << avgThreadTime << ", min=" << *minThreadTime << ", max="<< *maxThreadTime << ")" << std::endl;
+    std::cout << "Queue time: " << avgQueueTime << ", min=" << *minQueueTime << ", max="<< *maxQueueTime << ")" << std::endl;
+    std::cout << "CP Grid time: " << avgCPGTime << ", min=" << *minCPGTime << ", max="<< *maxCPGTime << ")" << std::endl;
+    std::cout << "CP Query time: " << avgCPQTime << ", min=" << *minCPQTime << ", max="<< *maxCPQTime << ")" << std::endl;
 
     // Distribution of thread times
     if (nthreads > 1) 

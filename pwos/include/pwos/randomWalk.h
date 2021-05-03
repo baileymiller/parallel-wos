@@ -94,9 +94,9 @@ public:
     /**
      * Pop a random walk from the front of the queue.
      * 
-     * @return random walk at the front of the queue
+     * @return random walks in the queue
      */
-    shared_ptr<RandomWalk> popFront();
+    vector<shared_ptr<RandomWalk>> popAllFront();
 
     /**
      * Gets size of queue.
@@ -118,6 +118,8 @@ private:
 class RandomWalkManager
 {
 public:
+    int nthreads;
+
     // pointer to a closest point grid, used to determine where to send a random walk
     shared_ptr<ClosestPointGrid> cpg;
 
@@ -154,6 +156,35 @@ public:
     RandomWalkManager(shared_ptr<ClosestPointGrid> cpg, Vec4f window, Vec2i res, int spp, int nthreads);
 
     /**
+     * Get the queue for this thread (this->tid) to send a message to receiver
+     * 
+     * @param receiver      the tid of the thread that will receive the random walk
+     * 
+     * @return the RandomWalkQueue that receivier will read from
+     */
+    int getWriteQueueId(int receiver);
+
+    /**
+     * Get the queue for this thread (this->tid) to read a message from sender
+     * 
+     * @param sender     the tid of the thread that is sending the random walk
+     * 
+     * @return the RandomWalkQueue that sender will write to
+     */
+    int getReadQueueId(int sender);
+
+    /**
+     * Get the queue for messages from sender to receiver
+     * 
+     * @param sender     the tid of the thread that is sending the random walk
+     * @param receiver   the tid of the thread that is receiving
+
+     * 
+     * @return the RandomWalkQueue that receivier will read from
+     */
+    int getQueueId(int sender, int receiver);
+
+    /**
      * Set the thread id, used in logic for adding/removing random walks from queues.
      * 
      * @param tid
@@ -167,10 +198,7 @@ public:
      * 
      * @return the id of the thread that should start processing the point
      */
-    inline int getParentId(Vec2f p)
-    {
-        return cpg->getBlockId(p);
-    }
+    int getParentId(Vec2f p);
 
     /**
      * @return true if the thread has active walks
@@ -187,32 +215,33 @@ public:
      * 
      * @return shared pointer for random walk popped from front of queue 
      */
-    shared_ptr<RandomWalk> popActiveWalk();
+    vector<shared_ptr<RandomWalk>> popActiveWalks();
     
     /**
      * Pop a terminated walk of the deque corresponding to tid.
      * 
      * @return shared pointer for random walk popped from front of queue
      */
-    shared_ptr<RandomWalk> popTerminatedWalk();
+    vector<shared_ptr<RandomWalk>> popTerminatedWalks();
     
     /**
      * Push random walk back into a specific queue. Will automatically
      * determine whether to push into terminated or active queue
      * 
-     * @param tid       thread's queue that should receive random walk
+     * @param sender     the tid of the thread that is sending the random walk
+     * @param receiver   the tid of the thread that is receiving
      * @param rw        random walk
      */ 
-    void pushWalk(size_t tid, shared_ptr<RandomWalk> rw);
+    void pushWalk(int sender, int receiver, shared_ptr<RandomWalk> rw);
 
     /**
-     * Push random walk back into queue. Will automatically determine
+     * Push random walks back into queue. Will automatically determine
      * which queue to push into based on whether the walk is terminated
      * or not, based on the parent id, and based on the position of the walk.
      * 
-     * @param rw        random walk
+     * @param rws       random walks
      */
-    void pushWalk(shared_ptr<RandomWalk> rw);
+    void pushWalks(vector<shared_ptr<RandomWalk>> rw);
 
     /**
      * Print counts for all of the queues.
