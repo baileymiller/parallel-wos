@@ -17,6 +17,7 @@
 #include <deque>
 #include <vector>
 #include <mutex>
+#include <numeric>
 
 using std::mutex;
 using std::string;
@@ -101,7 +102,16 @@ const map<string, IntegratorType> StrToIntegratorType({
     { "wos", IntegratorType::WOS }
 });
 
-enum StatType
+enum class StatTimerType
+{
+    TOTAL,
+    QUEUE,
+    CLOSEST_POINT_GRID,
+    CLOSEST_POINT_QUERY,
+    SETUP
+};
+
+enum class StatType
 {
     CLOSEST_POINT_QUERY,
     GRID_QUERY

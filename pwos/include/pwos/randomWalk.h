@@ -107,7 +107,7 @@ public:
 
 private:
     // lock for queue
-    mutex lock;
+    std::shared_ptr<mutex> lock;
 };
 
 /**
@@ -118,13 +118,8 @@ private:
 class RandomWalkManager
 {
 public:
-    // number of threads.
-    int nthreads;
-
-    // number of rows and columns in MC-WoG.
-    Vec2f bl, tr;
-    int nrows, ncols;
-    float gridWidth, gridHeight;
+    // pointer to a closest point grid, used to determine where to send a random walk
+    shared_ptr<ClosestPointGrid> cpg;
 
     // thread id that is holding this random walk queue instance.
     size_t tid;
@@ -134,6 +129,9 @@ public:
 
     // walks that have terminated by reaching a boundary or by being killed in russian roulette
     vector<shared_ptr<RandomWalkQueue>> terminatedWalks;
+
+    // indicates how many walks are left
+    shared_ptr<int> walksRemaining;
 
     /**
      * 
@@ -147,15 +145,13 @@ public:
     /**
      * Build random walk queues
      * 
-     * @param nthreads
-     * @param bl            bottom left of scene
-     * @param tr            top right of scene
-     * @param gridWidth     
-     * @param gridHeight
-     * @param ncols
-     * @param nrows
+     * @param cpg       closest point grid for the scene
+     * @param window    scene window (used to initialize random walks)
+     * @param res       resolution of output image (used to initialize random walks)
+     * @param spp       used to initialize random walks
+     * @param nthreads  number of threads available for setup and that will share the RWM
      */
-    RandomWalkManager(int nthreads, Vec2f bl, Vec2f tr, float gridWidth, float gridHeight, int ncols, int nrows);
+    RandomWalkManager(shared_ptr<ClosestPointGrid> cpg, Vec4f window, Vec2i res, int spp, int nthreads);
 
     /**
      * Set the thread id, used in logic for adding/removing random walks from queues.
@@ -163,6 +159,18 @@ public:
      * @param tid
      */
     void setThreadId(size_t tid);
+
+    /**
+     * Get thread id for a 2D coordinate in the scene
+     * 
+     * @param p
+     * 
+     * @return the id of the thread that should start processing the point
+     */
+    inline int getParentId(Vec2f p)
+    {
+        return cpg->getBlockId(p);
+    }
 
     /**
      * @return true if the thread has active walks

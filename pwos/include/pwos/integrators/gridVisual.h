@@ -30,10 +30,11 @@ public:
 
         image->render(scene->getWindow(), nthreads, [this, cpg](Vec2f coord, pcg32& _) -> Vec3f
         {
-            Vec3f b;
-            float dist, gridDist;
-            if (cpg.getDistToClosestPoint(coord, b, dist, gridDist))
+            if (cpg.pointInGridRange(coord))
             {
+                Vec3f b;
+                float dist, gridDist;
+                cpg.getDistToClosestPoint(coord, b, dist, gridDist);
                 return b * dist;
             }
             else

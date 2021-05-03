@@ -13,49 +13,74 @@ ClosestPointGrid::ClosestPointGrid(shared_ptr<Scene> scene, Vec2f bl, Vec2f tr, 
     float width = tr.x() - bl.x();
     float height = tr.y() - bl.y();
 
-    gridWidth = ceil(width / cellLength) + 1;
-    gridHeight = ceil(height / cellLength) + 1;
+    gridWidth = ceil(width / cellLength) + 5;
+    gridHeight = ceil(height / cellLength) + 5;
 
     grid = new GridData[gridWidth * gridHeight];
 
+    // layout grid in memory in blocks (nthreads = 2^n blocks)
+    float log2nthreads = log2(nthreads);
+    int n = floor(log2nthreads);
+    int numUsableThreads = int(pow(2, n));
+    WARN_IF(log2nthreads != n, "CPG only utilizes 2^n blocks. Will support blocked regions for " + to_string(numUsableThreads) + " of the " + to_string(nthreads) + " available threads.");
+
+    nBlockCols = (n == 0) || (n % 2 != 0) ? n + 1 : n;
+    nBlockRows = numUsableThreads / nBlockCols;
+    nBlocks = nBlockCols * nBlockRows;
+
+    blockWidth = ceil(gridWidth / nBlockCols);
+    blockHeight = ceil(gridHeight / nBlockRows);
+    blockSize = blockWidth * blockHeight;
+
+    ProgressBar progress;
+    progress.start(nBlocks * blockWidth);
+
     #pragma omp parallel for num_threads(nthreads)
-    for (int idy = 0; idy < gridHeight; idy++) {
+    for (int bid = 0; bid < nBlocks; bid ++)
+    {
+        int bidy = bid / nBlockCols;
+        int bidx = bid % nBlockCols;
+        int maxIdx = std::min(blockWidth, gridWidth - blockWidth * bidx);
+        int maxIdy = std::min(blockHeight, gridHeight - blockHeight * bidy);
 
-        for (int idx = 0; idx < gridWidth; idx++)
+        int blockOffset = bid * blockSize;
+        int blockX = bidx * blockWidth;
+        int blockY = bidy * blockHeight;
+
+        // iterate over all cells in the block
+        for (int idx = 0; idx < maxIdx; idx++)
         {
-            // index of the grid point in the array
-            int id = idx + idy * gridWidth;
+            for (int idy = 0; idy < maxIdy; idy++)
+            {
+                // id = offset within block + global block offset
+                int id = (idx + idy * blockWidth) + blockOffset;
 
-            // compute grid data
-            Vec3f b;
-            Vec2f gp = getGridPointCoordinates(Vec2i(idx, idy));
-            Vec2f closestPoint = scene->getClosestPoint(gp, b);
-            grid[id].dist = (closestPoint - gp).norm();
-            grid[id].b = make_shared<Vec3f>(b);
-
+                Vec3f b;
+                Vec2f gp = getGridPointCoordinates(Vec2i(idx + bidx, idy + bidy));
+                Vec2f closestPoint = scene->getClosestPoint(gp, b);
+                grid[id].dist = (closestPoint - gp).norm();
+                grid[id].b = make_shared<Vec3f>(b);
+            }
+            progress++;
         }
     }
+    progress.finish();
 }
 
-bool ClosestPointGrid::getDistToClosestPoint(Vec2f p, Vec3f &b, float &dist, float &gridDist) const
+bool ClosestPointGrid::getDistToClosestPoint(Vec2f p, Vec3f &b, float &dist, float &gridDist, int tid) const
 {
-    Stats::INCREMENT_COUNT(StatType::GRID_QUERY);
-    // ensure that p is within grid, otherwise return false
-    if (p.x() < bl.x() || tr.x() <= p.x()) return false;
-    if (p.y() < bl.y() || tr.y() <= p.y()) return false;
-
-    // get offset within grid
-    float xOffset = p.x() - bl.x();
-    float yOffset = p.y() - bl.y();
+Stats::INCREMENT_COUNT(StatType::GRID_QUERY);
+Stats::TIME_THREAD(tid, StatTimerType::CLOSEST_POINT_GRID, [this, p, &b, &dist, &gridDist]() -> void {
 
     // TODO: potentially use another corner of the cell if it is closer, for now use bottom left (fast to compute)
-    int idx = floor(xOffset / cellLength);
-    int idy = floor(yOffset / cellLength);
-    int id = idx + idy * gridWidth;
+    Vec2i g = getGridCoordinates(p);
+    int id = getGridPointIndex(g);
 
     b = *grid[id].b;
     dist = grid[id].dist;
-    gridDist = (p - getGridPointCoordinates(Vec2i(idx, idy))).norm();
+    gridDist = (p - getGridPointCoordinates(g)).norm();
+
+});
 
     return true;
 }

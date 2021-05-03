@@ -35,7 +35,7 @@ void Image::render(Vec4f window, int nthreads, Rand2DFunction f)
         #pragma omp for 
         for (int i = 0; i < getNumPixels(); i++)
         {
-            Stats::TIME_THREAD(tid, [this, i, f, window, &sampler]() -> void {
+            Stats::TIME_THREAD(tid, StatTimerType::TOTAL, [this, i, f, window, &sampler]() -> void {
                 Vec2i pixel = getPixelCoordinates(i);
                 Vec2f coord = getXYCoords(pixel, window, res);
                 set(i, f(coord, sampler));

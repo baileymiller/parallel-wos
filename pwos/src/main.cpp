@@ -52,13 +52,16 @@ int main(int argc, char* argv[])
     Scene scene(parser.getMain(0, "Must specify scene file ./pwos [scene file]"));
 
     Stats::reset();
-    Stats::initThreadTimers(nthreads);
+    Stats::initTimers(nthreads);
 
     // build and run the integrator.
-    shared_ptr<Integrator> integrator = buildIntegrator(integratorType, scene, res, spp, nthreads);
-    integrator->render();
-
+    shared_ptr<Integrator> integrator;
+Stats::TIME(StatTimerType::TOTAL, [&integrator, integratorType, scene, res, spp, nthreads]()->void {
+Stats::TIME(StatTimerType::SETUP, [&integrator, integratorType, scene, res, spp, nthreads]()->void {
+        integrator = buildIntegrator(integratorType, scene, res, spp, nthreads);
+});
+        integrator->render();
+});
     Stats::report();
-
     integrator->save();
 }
