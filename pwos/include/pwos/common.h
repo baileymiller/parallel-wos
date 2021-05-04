@@ -18,6 +18,7 @@
 #include <vector>
 #include <mutex>
 #include <numeric>
+#include <algorithm>
 
 using std::mutex;
 using std::string;
@@ -105,7 +106,8 @@ const map<string, IntegratorType> StrToIntegratorType({
 enum class StatTimerType
 {
     TOTAL,
-    QUEUE,
+    SEND_WALKS,
+    RECV_WALKS,
     CLOSEST_POINT_GRID,
     CLOSEST_POINT_QUERY,
     SETUP

@@ -76,9 +76,6 @@ struct RandomWalk
 class RandomWalkQueue
 {
 public:
-    // underlying deque
-    shared_ptr<deque<shared_ptr<RandomWalk>>> q;
-
     /**
      * Default constructor.
      */
@@ -87,27 +84,40 @@ public:
     /**
      * Push a random walk into the back of the queue
      * 
+     * @param rws        random walks
+     */
+    void pushBackAll(vector<shared_ptr<RandomWalk>> rws);
+
+    /**
+     * Pop all random walks from the front of the queue.
+     * 
+     * @return random walks in the queue
+     */
+    vector<shared_ptr<RandomWalk>> popAllFront();
+
+private:
+    // lock for queue
+    std::shared_ptr<mutex> lockA, lockB;
+
+    // underlying deque
+    shared_ptr<deque<shared_ptr<RandomWalk>>> qA, qB;
+
+    /**
+     * Push a random walk into the back of the queue
+     * 
+     * @param q         queue to push into (assumes the caller has a lock)
      * @param rw        random walk
      */
-    void pushBack(shared_ptr<RandomWalk> rw);
+    void pushBackAll(shared_ptr<deque<shared_ptr<RandomWalk>>> &q, vector<shared_ptr<RandomWalk>> rws);
 
     /**
      * Pop a random walk from the front of the queue.
      * 
-     * @return random walk at the front of the queue
+     * @param q       queue to pop from (assumes the caller has a lock)
+     * @param rws     vector to populate with random walks 
      */
-    shared_ptr<RandomWalk> popFront();
+    void popAllFront(shared_ptr<deque<shared_ptr<RandomWalk>>> &q, vector<shared_ptr<RandomWalk>> &rws);
 
-    /**
-     * Gets size of queue.
-     * 
-     * @return the size of the  queue.
-     */
-    int size();
-
-private:
-    // lock for queue
-    std::shared_ptr<mutex> lock;
 };
 
 /**
@@ -118,17 +128,21 @@ private:
 class RandomWalkManager
 {
 public:
+    int nthreads;
+
     // pointer to a closest point grid, used to determine where to send a random walk
     shared_ptr<ClosestPointGrid> cpg;
 
     // thread id that is holding this random walk queue instance.
     size_t tid;
 
-    // walks that are still in progress
+    // queues used to send active or terminated walks back and forth.
     vector<shared_ptr<RandomWalkQueue>> activeWalks;
-
-    // walks that have terminated by reaching a boundary or by being killed in russian roulette
     vector<shared_ptr<RandomWalkQueue>> terminatedWalks;
+    
+    // create buffer of all of the walks we intend to send to other threads
+    vector<vector<shared_ptr<RandomWalk>>> activeWalksSendBuffer;
+    vector<vector<shared_ptr<RandomWalk>>> terminatedWalksSendBuffer;
 
     // indicates how many walks are left
     shared_ptr<int> walksRemaining;
@@ -154,6 +168,35 @@ public:
     RandomWalkManager(shared_ptr<ClosestPointGrid> cpg, Vec4f window, Vec2i res, int spp, int nthreads);
 
     /**
+     * Get the queue for this thread (this->tid) to send a message to receiver
+     * 
+     * @param receiver      the tid of the thread that will receive the random walk
+     * 
+     * @return the RandomWalkQueue that receivier will read from
+     */
+    int getWriteQueueId(int receiver);
+
+    /**
+     * Get the queue for this thread (this->tid) to read a message from sender
+     * 
+     * @param sender     the tid of the thread that is sending the random walk
+     * 
+     * @return the RandomWalkQueue that sender will write to
+     */
+    int getReadQueueId(int sender);
+
+    /**
+     * Get the queue for messages from sender to receiver
+     * 
+     * @param sender     the tid of the thread that is sending the random walk
+     * @param receiver   the tid of the thread that is receiving
+
+     * 
+     * @return the RandomWalkQueue that receivier will read from
+     */
+    int getQueueId(int sender, int receiver);
+
+    /**
      * Set the thread id, used in logic for adding/removing random walks from queues.
      * 
      * @param tid
@@ -167,10 +210,7 @@ public:
      * 
      * @return the id of the thread that should start processing the point
      */
-    inline int getParentId(Vec2f p)
-    {
-        return cpg->getBlockId(p);
-    }
+    int getParentId(Vec2f p);
 
     /**
      * @return true if the thread has active walks
@@ -183,40 +223,34 @@ public:
     bool hasTerminatedWalks();
 
     /**
-     * Pop an active walk of the deque corresponding to tid
+     * Add random walk to a send buffer with destination explicitly defined.
      * 
-     * @return shared pointer for random walk popped from front of queue 
-     */
-    shared_ptr<RandomWalk> popActiveWalk();
-    
-    /**
-     * Pop a terminated walk of the deque corresponding to tid.
-     * 
-     * @return shared pointer for random walk popped from front of queue
-     */
-    shared_ptr<RandomWalk> popTerminatedWalk();
-    
-    /**
-     * Push random walk back into a specific queue. Will automatically
-     * determine whether to push into terminated or active queue
-     * 
-     * @param tid       thread's queue that should receive random walk
+     * @param receiver  destination
      * @param rw        random walk
-     */ 
-    void pushWalk(size_t tid, shared_ptr<RandomWalk> rw);
+     */
+    void addWalkToBuffer(int receiver, shared_ptr<RandomWalk> rw);
 
     /**
-     * Push random walk back into queue. Will automatically determine
-     * which queue to push into based on whether the walk is terminated
-     * or not, based on the parent id, and based on the position of the walk.
+     * Add random walk to a send buffer with destination automatically determined based
+     * on random walk's position and whether it is terminated.
      * 
      * @param rw        random walk
      */
-    void pushWalk(shared_ptr<RandomWalk> rw);
+    void addWalkToBuffer(shared_ptr<RandomWalk> rw);
 
     /**
-     * Print counts for all of the queues.
+     * Send buffered random walks to other threads.
      */
-    void printCounts();
+    void sendWalks();
+
+    /**
+     * Receive active random walks from other threads.
+     */
+    vector<shared_ptr<RandomWalk>> recvActiveWalks();
+
+    /**
+     * Receive terminated random walks from other threads.
+     */
+    vector<shared_ptr<RandomWalk>> recvTerminatedWalks();
 
 };

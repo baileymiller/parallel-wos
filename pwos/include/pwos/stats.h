@@ -14,8 +14,11 @@ public:
     // the total run time for each thread
     inline static vector<fsec> threadTime;
 
-    // How long each thread spends accessing the random walk queue
-    inline static vector<fsec> threadQueueTime;
+    // How long each thread spends sending random walks
+    inline static vector<fsec> threadSendWalksTime;
+
+    // How long each thread spends receiving random walks
+    inline static vector<fsec> threadRecvWalksTime;
 
     // How long each thread spends reading from memory (ClosestPointGrid Queries)
     inline static vector<fsec> threadCPGTime;

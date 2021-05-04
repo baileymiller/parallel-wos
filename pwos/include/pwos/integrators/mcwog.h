@@ -22,12 +22,6 @@ public:
     MCWoG(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1)
     : Integrator("mcwog", scene, res, spp, nthreads)
     {
-        // Determine how many cols/rows the scene will be divided into
-        float log2nthreads = log2(nthreads);
-        int n = floor(log2nthreads);
-        numUsableThreads = int(pow(2, n));
-        WARN_IF(log2nthreads != n, "MC WoG only utilizes 2^n threads. Using " + to_string(numUsableThreads) + " of the " + to_string(nthreads) + " available threads.");
-
         // Set the dimensions of the grid/region that each thread is responsible for
         Vec4f window = scene.getWindow();
         Vec2f bl(window[0], window[1]);
@@ -36,63 +30,70 @@ public:
         float dy = tr.y() - bl.y();
 
         // Determine the size of the cells in each grid 
-        cellLength = std::min(dx / res.x(), dy / res.y());
-
-        // The minimum length of R before we switch to doing CPQ's and stop looking in grid
+        cellLength = 0.01 * std::min(dx / res.x(), dy / res.y());
         minGridR = sqrt(2) * cellLength;
+        cpg = make_shared<ClosestPointGrid>(this->scene, bl, tr, cellLength, nthreads);
+
+        // Determine how many cols/rows the scene will be divided into
+        float log2nthreads = log2(nthreads);
+        int n = floor(log2nthreads);
+        numUsableThreads = int(pow(2, n));
+        WARN_IF(log2nthreads != n, "MC WoG only utilizes 2^n threads. Using " + to_string(numUsableThreads) + " of the " + to_string(nthreads) + " available threads.");
 
         // create closest point grid and random walk manager
-        cpg = make_shared<ClosestPointGrid>(this->scene, bl, tr, cellLength, nthreads);
         sharedRWM = make_shared<RandomWalkManager>(cpg, window, res, spp, nthreads);
     };
 
     void virtual render() override
     {
         ProgressBar progress;
-        progress.start(image->getNumPixels() * spp);
-        int walksRemaining = image->getNumPixels() * spp;
+        progress.start(image->getNumPixels());
+        int walksRemaining = image->getNumPixels();
         #pragma omp parallel num_threads(numUsableThreads)
         {
         size_t tid = omp_get_thread_num();
 Stats::TIME_THREAD(tid, StatTimerType::TOTAL, [this, tid, &progress, &walksRemaining]() -> void {
-
             pcg32 sampler = getSampler(tid);
-            std::shared_ptr<RandomWalkManager> rwm = make_shared<RandomWalkManager>(sharedRWM, tid);
+            std::shared_ptr<RandomWalkManager> rwm = (tid == 0)
+                ? sharedRWM
+                : make_shared<RandomWalkManager>(sharedRWM, tid);
 
             vector<shared_ptr<RandomWalk>> readyToWrite;
             while (true)
             {
                 // advance existing walks
-                while (rwm->hasActiveWalks())
+                vector<shared_ptr<RandomWalk>> activeRandomWalks = rwm->recvActiveWalks();
+                for (int i = 0; i < activeRandomWalks.size(); i++)
                 {
-                    shared_ptr<RandomWalk> rw = rwm->popActiveWalk();
+                    shared_ptr<RandomWalk> rw = activeRandomWalks[i];
                     advanceWalk(scene, rw, cpg, sampler, minGridR, rrProb);
-                    rwm->pushWalk(rw);
+                    rwm->addWalkToBuffer(rw);
                 }
 
                 // process finished walks
-                int numCompleted = 0;
-                while (rwm->hasTerminatedWalks())
+                vector<shared_ptr<RandomWalk>> terminatedRandomWalks = rwm->recvTerminatedWalks();
+                for (int i = 0; i < terminatedRandomWalks.size(); i++)
                 {
-                    shared_ptr<RandomWalk> rw = rwm->popTerminatedWalk();
-                    if (rw->nSamplesLeft == 0)
+                    shared_ptr<RandomWalk> rw = terminatedRandomWalks[i];
+                    if (rw ->nSamplesLeft == 0)
                     {
-                        // no samples left, just terminate random walk
+                        // no samples left, just terminate random walk and remove it from the list
                         readyToWrite.push_back(rw);
+                        
+                        progress++;
+
+                        #pragma omp atomic
+                        walksRemaining -= 1;
                     }
                     else
                     {
-                        // reinitialize the walk and push it back into the random walk queue.
+                        // reinitialize the walk
                         rw->initializeWalk();
-                        rwm->pushWalk(rw);
+                        rwm->addWalkToBuffer(rw);
                     }
-                    numCompleted++;
                 }
+                rwm->sendWalks();
 
-                #pragma omp atomic
-                walksRemaining = walksRemaining - numCompleted;
-
-                progress += numCompleted;
                 if (walksRemaining <= 0) break;
             }
 
@@ -128,7 +129,7 @@ private:
         }
         else
         {
-            // if we end up here, the point is not within the grid. do a normal closest point query.
+            // if we end up here, the point is not within the grid do a normal closest point query.
             R = (scene->getClosestPoint(p, b) - p).norm();
         }
 
