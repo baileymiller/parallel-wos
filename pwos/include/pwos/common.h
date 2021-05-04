@@ -106,7 +106,8 @@ const map<string, IntegratorType> StrToIntegratorType({
 enum class StatTimerType
 {
     TOTAL,
-    QUEUE,
+    SEND_WALKS,
+    RECV_WALKS,
     CLOSEST_POINT_GRID,
     CLOSEST_POINT_QUERY,
     SETUP

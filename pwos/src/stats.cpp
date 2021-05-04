@@ -13,7 +13,8 @@ void Stats::reset()
 void Stats::initTimers(int nthreads)
 {
     threadTime = vector<fsec>(nthreads);
-    threadQueueTime = vector<fsec>(nthreads);
+    threadSendWalksTime = vector<fsec>(nthreads);
+    threadRecvWalksTime = vector<fsec>(nthreads);
     threadCPGTime = vector<fsec>(nthreads);
     threadCPQTime = vector<fsec>(nthreads);
 }
@@ -43,8 +44,11 @@ void Stats::TIME_THREAD(size_t tid, StatTimerType type, FunctionBlock f)
         case StatTimerType::TOTAL:
             threadTime[tid] += Time::now() - start;
             break;
-        case StatTimerType::QUEUE:
-            threadQueueTime[tid] += Time::now() - start;
+        case StatTimerType::SEND_WALKS:
+            threadSendWalksTime[tid] += Time::now() - start;
+            break;
+     case StatTimerType::RECV_WALKS:
+            threadRecvWalksTime[tid] += Time::now() - start;
             break;
         case StatTimerType::CLOSEST_POINT_GRID:
             threadCPGTime[tid] += Time::now() - start;
@@ -86,26 +90,30 @@ void Stats::report()
 
     // average of thread times
     int nthreads = threadTime.size();
-    std::vector<float> threadTimeF, threadQueueTimeF, threadCPGTimeF, threadCPQTimeF;
+    std::vector<float> threadTimeF, threadSendWalksTimeF, threadRecvWalksTimeF, threadCPGTimeF, threadCPQTimeF;
     for (int i = 0; i < nthreads; i++)
     {
         threadTimeF.push_back(threadTime[i].count());
-        threadQueueTimeF.push_back(threadQueueTime[i].count());
+        threadSendWalksTimeF.push_back(threadSendWalksTime[i].count());
+        threadRecvWalksTimeF.push_back(threadRecvWalksTime[i].count());
         threadCPGTimeF.push_back(threadCPGTime[i].count());
         threadCPQTimeF.push_back(threadCPQTime[i].count());
     }
     auto [minThreadTime, maxThreadTime] = std::minmax_element(threadTimeF.begin(), threadTimeF.end());
-    auto [minQueueTime, maxQueueTime] = std::minmax_element(threadQueueTimeF.begin(), threadQueueTimeF.end());
+    auto [minSendWalksTime, maxSendWalksTime] = std::minmax_element(threadSendWalksTimeF.begin(), threadSendWalksTimeF.end());
+    auto [minRecvWalksTime, maxRecvWalksTime] = std::minmax_element(threadRecvWalksTimeF.begin(), threadRecvWalksTimeF.end());
     auto [minCPGTime, maxCPGTime] = std::minmax_element(threadCPGTimeF.begin(), threadCPGTimeF.end());
     auto [minCPQTime, maxCPQTime] = std::minmax_element(threadCPQTimeF.begin(), threadCPQTimeF.end());
 
     float avgThreadTime = std::accumulate(threadTimeF.begin(), threadTimeF.end(), 0.0f) / float(nthreads);
-    float avgQueueTime = std::accumulate(threadQueueTimeF.begin(), threadQueueTimeF.end(), 0.0f) / float(nthreads);
+    float avgSendWalksTime = std::accumulate(threadSendWalksTimeF.begin(), threadSendWalksTimeF.end(), 0.0f) / float(nthreads);
+    float avgRecvWalksTime = std::accumulate(threadRecvWalksTimeF.begin(), threadRecvWalksTimeF.end(), 0.0f) / float(nthreads);
     float avgCPGTime = std::accumulate(threadCPGTimeF.begin(), threadCPGTimeF.end(), 0.0f) / float(nthreads);
     float avgCPQTime = std::accumulate(threadCPQTimeF.begin(), threadCPQTimeF.end(), 0.0f) / float(nthreads);
 
     std::cout << "Time per thread: " << "( avg=" << avgThreadTime << ", min=" << *minThreadTime << ", max="<< *maxThreadTime << ")" << std::endl;
-    std::cout << "Queue time: " << avgQueueTime << ", min=" << *minQueueTime << ", max="<< *maxQueueTime << ")" << std::endl;
+    std::cout << "Send Walks time: " << avgSendWalksTime << ", min=" << *minSendWalksTime << ", max="<< *maxSendWalksTime << ")" << std::endl;
+    std::cout << "Recv Walks time: " << avgRecvWalksTime << ", min=" << *minRecvWalksTime << ", max="<< *maxRecvWalksTime << ")" << std::endl;
     std::cout << "CP Grid time: " << avgCPGTime << ", min=" << *minCPGTime << ", max="<< *maxCPGTime << ")" << std::endl;
     std::cout << "CP Query time: " << avgCPQTime << ", min=" << *minCPQTime << ", max="<< *maxCPQTime << ")" << std::endl;
 

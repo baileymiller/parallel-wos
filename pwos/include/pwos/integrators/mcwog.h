@@ -30,7 +30,7 @@ public:
         float dy = tr.y() - bl.y();
 
         // Determine the size of the cells in each grid 
-        cellLength = std::min(dx / res.x(), dy / res.y());
+        cellLength = 0.01 * std::min(dx / res.x(), dy / res.y());
         minGridR = sqrt(2) * cellLength;
         cpg = make_shared<ClosestPointGrid>(this->scene, bl, tr, cellLength, nthreads);
 
@@ -47,31 +47,31 @@ public:
     void virtual render() override
     {
         ProgressBar progress;
-        progress.start(image->getNumPixels() * spp);
-        int walksRemaining = image->getNumPixels() * spp;
+        progress.start(image->getNumPixels());
+        int walksRemaining = image->getNumPixels();
         #pragma omp parallel num_threads(numUsableThreads)
         {
         size_t tid = omp_get_thread_num();
 Stats::TIME_THREAD(tid, StatTimerType::TOTAL, [this, tid, &progress, &walksRemaining]() -> void {
-
             pcg32 sampler = getSampler(tid);
-            std::shared_ptr<RandomWalkManager> rwm = make_shared<RandomWalkManager>(sharedRWM, tid);
+            std::shared_ptr<RandomWalkManager> rwm = (tid == 0)
+                ? sharedRWM
+                : make_shared<RandomWalkManager>(sharedRWM, tid);
 
             vector<shared_ptr<RandomWalk>> readyToWrite;
             while (true)
             {
                 // advance existing walks
-                vector<shared_ptr<RandomWalk>> activeRandomWalks = rwm->popActiveWalks();
+                vector<shared_ptr<RandomWalk>> activeRandomWalks = rwm->recvActiveWalks();
                 for (int i = 0; i < activeRandomWalks.size(); i++)
                 {
                     shared_ptr<RandomWalk> rw = activeRandomWalks[i];
                     advanceWalk(scene, rw, cpg, sampler, minGridR, rrProb);
+                    rwm->addWalkToBuffer(rw);
                 }
-                rwm->pushWalks(activeRandomWalks);
 
                 // process finished walks
-                vector<shared_ptr<RandomWalk>> terminatedRandomWalks = rwm->popTerminatedWalks();
-                int numCompleted = terminatedRandomWalks.size();
+                vector<shared_ptr<RandomWalk>> terminatedRandomWalks = rwm->recvTerminatedWalks();
                 for (int i = 0; i < terminatedRandomWalks.size(); i++)
                 {
                     shared_ptr<RandomWalk> rw = terminatedRandomWalks[i];
@@ -79,20 +79,21 @@ Stats::TIME_THREAD(tid, StatTimerType::TOTAL, [this, tid, &progress, &walksRemai
                     {
                         // no samples left, just terminate random walk and remove it from the list
                         readyToWrite.push_back(rw);
-                        terminatedRandomWalks.erase(terminatedRandomWalks.begin() + i);
+                        
+                        progress++;
+
+                        #pragma omp atomic
+                        walksRemaining -= 1;
                     }
                     else
                     {
                         // reinitialize the walk
                         rw->initializeWalk();
+                        rwm->addWalkToBuffer(rw);
                     }
                 }
-                rwm->pushWalks(terminatedRandomWalks);
+                rwm->sendWalks();
 
-                #pragma omp atomic
-                walksRemaining = walksRemaining - numCompleted;
-
-                progress += numCompleted;
                 if (walksRemaining <= 0) break;
             }
 
@@ -128,7 +129,7 @@ private:
         }
         else
         {
-            // if we end up here, the point is not within the grid. do a normal closest point query.
+            // if we end up here, the point is not within the grid do a normal closest point query.
             R = (scene->getClosestPoint(p, b) - p).norm();
         }
 

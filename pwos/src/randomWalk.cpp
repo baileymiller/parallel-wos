@@ -40,37 +40,63 @@ void RandomWalk::terminate(Vec3f g)
 
 RandomWalkQueue::RandomWalkQueue() 
 {
-    q = make_shared<deque<shared_ptr<RandomWalk>>>();
-    lock = make_shared<mutex>();
+    qA = make_shared<deque<shared_ptr<RandomWalk>>>();
+    qB = make_shared<deque<shared_ptr<RandomWalk>>>();
+    lockA = make_shared<mutex>();
+    lockB = make_shared<mutex>();
 };
 
-void RandomWalkQueue::pushBack(shared_ptr<RandomWalk> rw)
+void RandomWalkQueue::pushBackAll(shared_ptr<deque<shared_ptr<RandomWalk>>> &q, vector<shared_ptr<RandomWalk>> rws)
 {
-    lock->lock();
-    q->push_back(rw);
-    lock->unlock();
+    for (shared_ptr<RandomWalk> rw : rws)
+    {
+        q->push_back(rw);
+    }
 }
 
-vector<shared_ptr<RandomWalk>> RandomWalkQueue::popAllFront()
+void RandomWalkQueue::pushBackAll(vector<shared_ptr<RandomWalk>> rws)
 {
-    vector<shared_ptr<RandomWalk>> rws;
-    lock->lock();
+    if (rws.size() == 0)return;
+    if (lockA->try_lock())
+    {
+        pushBackAll(qA, rws);
+        lockA->unlock();
+    }
+    else if (lockB->try_lock())
+    {
+        pushBackAll(qB, rws);
+        lockB->unlock();
+    }
+}
+
+void RandomWalkQueue::popAllFront(shared_ptr<deque<shared_ptr<RandomWalk>>> &q, vector<shared_ptr<RandomWalk>> &rws)
+{
     while(q->size() > 0)
     {
         shared_ptr<RandomWalk> rw = q->front();
         q->pop_front();
         rws.push_back(rw);
     }
-    lock->unlock();
-    return rws;
 }
 
-int RandomWalkQueue::size()
+vector<shared_ptr<RandomWalk>> RandomWalkQueue::popAllFront()
 {
-    lock->lock();
-    int qsize = q->size();
-    lock->unlock();
-    return qsize;
+    vector<shared_ptr<RandomWalk>> rws;
+    if (qA->size() > 0 && lockA->try_lock())
+    {
+        int qASize = qA->size();
+        popAllFront(qA, rws);
+        lockA->unlock();
+    }
+
+    if (qB->size() > 0 && lockB->try_lock())
+    {
+        int qBSize = qB->size();
+        popAllFront(qB, rws);
+        lockB->unlock();
+    }
+
+    return rws;
 }
 
 RandomWalkManager::RandomWalkManager(shared_ptr<RandomWalkManager> rwm, size_t tid)
@@ -79,7 +105,18 @@ RandomWalkManager::RandomWalkManager(shared_ptr<RandomWalkManager> rwm, size_t t
 , activeWalks(rwm->activeWalks)
 , terminatedWalks(rwm->terminatedWalks)
 , cpg(rwm->cpg)
-{}
+{
+    // setup new buffers
+    activeWalksSendBuffer = vector<vector<shared_ptr<RandomWalk>>>();
+    terminatedWalksSendBuffer = vector<vector<shared_ptr<RandomWalk>>>();
+
+    // create rw send buffer
+    for (int i = 0; i < nthreads; i++)
+    {
+        activeWalksSendBuffer.push_back(vector<shared_ptr<RandomWalk>>());
+        terminatedWalksSendBuffer.push_back(vector<shared_ptr<RandomWalk>>());
+    }
+}
 
 RandomWalkManager::RandomWalkManager(shared_ptr<ClosestPointGrid> cpg, Vec4f window, Vec2i res, int spp, int nthreads)
 : tid(0)
@@ -93,19 +130,26 @@ RandomWalkManager::RandomWalkManager(shared_ptr<ClosestPointGrid> cpg, Vec4f win
         terminatedWalks.push_back(make_shared<RandomWalkQueue>());
     }
 
+    // create rw send buffer
+    for (int i = 0; i < nthreads; i++)
+    {
+        activeWalksSendBuffer.push_back(vector<shared_ptr<RandomWalk>>());
+        terminatedWalksSendBuffer.push_back(vector<shared_ptr<RandomWalk>>());
+    }
+
     ProgressBar progress;
     progress.start(res.x() * res.y());
-    #pragma omp parallel for num_threads(nthreads)
     for (int ix = 0; ix < res.x(); ix++)
     {
         size_t tid = omp_get_thread_num();
         for (int iy = 0; iy < res.y(); iy++)
         {
             Vec2f coord = getXYCoords(Vec2i(ix, iy), window, res);
-            int parentId = getParentId(coord);
-            pushWalk(tid, parentId, make_shared<RandomWalk>(tid, ix + iy * res.y(), coord, spp));
+            shared_ptr<RandomWalk> rw = make_shared<RandomWalk>(tid, ix + iy * res.y(), coord, spp);
+            addWalkToBuffer(getParentId(coord), rw);
         }
     }
+    sendWalks();
     progress.finish();
 };
 
@@ -134,84 +178,112 @@ void RandomWalkManager::setThreadId(size_t tid)
     this->tid = tid;
 };
 
-vector<shared_ptr<RandomWalk>> RandomWalkManager::popActiveWalks()
+vector<shared_ptr<RandomWalk>> RandomWalkManager::recvActiveWalks()
 {
     vector<shared_ptr<RandomWalk>> rws;
+Stats::TIME_THREAD(tid, StatTimerType::RECV_WALKS, [this, &rws]() -> void {
     for (size_t sender = 0; sender < nthreads; sender++)
     {
-        int idx = getReadQueueId(sender);
-        THROW_IF(idx < 0 || idx > 2 * nthreads * nthreads, "POP WALKS IDX OUT OF RANGE " + to_string(int(idx)) + " " + to_string(tid) + " " + to_string(sender) );
-        vector<shared_ptr<RandomWalk>> rwsFromSender = activeWalks[idx]->popAllFront();
-        for (shared_ptr<RandomWalk> rw : rwsFromSender)
+        vector<shared_ptr<RandomWalk>> rwsFromSender;
+        if (tid != sender)
         {
-            rws.push_back(rw);
-        }
-    }
-    return rws;
-}
-
-vector<shared_ptr<RandomWalk>> RandomWalkManager::popTerminatedWalks()
-{
-    vector<shared_ptr<RandomWalk>> rws;
-    for (size_t sender = 0; sender < nthreads; sender++)
-    {
-        int idx = getReadQueueId(sender);
-        THROW_IF(idx < 0 || idx > 2 * nthreads * nthreads, "POP WALKS IDX OUT OF RANGE " + to_string(int(idx))+ " " + to_string(tid) + " " + to_string(sender) );
-        vector<shared_ptr<RandomWalk>> rwsFromSender = terminatedWalks[idx]->popAllFront();
-        for (shared_ptr<RandomWalk> rw : rwsFromSender)
-        {
-            rws.push_back(rw);
-        }
-    }
-    return rws;
-}
-
-void RandomWalkManager::pushWalk(int sender, int receiver, shared_ptr<RandomWalk> rw)
-{
-    int idx = getQueueId(sender, receiver);
-    THROW_IF(tid < 0 || tid > activeWalks.size(), "tid " + to_string(tid) + " is out of range. Cannot add random walk to queue.");
-    Stats::TIME_THREAD(tid, StatTimerType::QUEUE, [this, idx, rw]() -> void {
-    if (rw->terminated)
-    {
-        terminatedWalks[idx]->pushBack(rw);
-    }
-    else
-    {
-        activeWalks[idx]->pushBack(rw);
-    }
-
-    });
-}
-
-void RandomWalkManager::pushWalks(vector<shared_ptr<RandomWalk>> rws)
-{
-Stats::TIME_THREAD(tid, StatTimerType::QUEUE, [this, &rws]() -> void {
-
-    for (shared_ptr<RandomWalk> rw : rws)
-    {
-        if (cpg->pointInGridRange(rw->p))
-        {
-            // determine the row and column where random walk is located
-            pushWalk(tid, cpg->getBlockId(rw->p), rw);
+            int idx = getReadQueueId(sender);
+            rwsFromSender = activeWalks[idx]->popAllFront();
         }
         else
         {
-            // just push back into parent's queue, will need to do real closest point queries
-            pushWalk(tid, rw->parentId, rw);
+            // read from our own send buffer
+            rwsFromSender = activeWalksSendBuffer[tid];
+        }
+
+        for (shared_ptr<RandomWalk> rw : rwsFromSender)
+        {
+            rws.push_back(rw);
+        }
+    }
+    // extra cleanup, clear our own send buffer
+    activeWalksSendBuffer[tid].clear();
+});
+    return rws;
+}
+
+vector<shared_ptr<RandomWalk>> RandomWalkManager::recvTerminatedWalks()
+{
+    vector<shared_ptr<RandomWalk>> rws;
+Stats::TIME_THREAD(tid, StatTimerType::RECV_WALKS, [this, &rws]() -> void {
+    for (size_t sender = 0; sender < nthreads; sender++)
+    {
+        vector<shared_ptr<RandomWalk>> rwsFromSender;
+        if (tid != sender)
+        {
+            int idx = getReadQueueId(sender);
+            rwsFromSender = terminatedWalks[idx]->popAllFront();
+        }
+        else
+        {
+            // read from our own send buffer
+            rwsFromSender = terminatedWalksSendBuffer[tid];
+        }
+
+        for (shared_ptr<RandomWalk> rw : rwsFromSender)
+        {
+            rws.push_back(rw);
+        }
+    }
+    
+    // extra cleanup, clear our own send buffer
+    terminatedWalksSendBuffer[tid].clear();
+});
+    return rws;
+}
+
+void RandomWalkManager::sendWalks()
+{
+Stats::TIME_THREAD(tid, StatTimerType::SEND_WALKS, [this]() -> void {
+    for (int i = 0; i < nthreads; i++)
+    {
+        if (tid != i)
+        {
+            // write to other threads
+            int idx = getWriteQueueId(i);
+            if (activeWalksSendBuffer[i].size() > 0)
+            {
+                activeWalks[idx]->pushBackAll(activeWalksSendBuffer[i]);
+                activeWalksSendBuffer[i].clear();
+            }
+
+            if (terminatedWalksSendBuffer[i].size() > 0)
+            {
+                terminatedWalks[idx]->pushBackAll(terminatedWalksSendBuffer[i]);
+                terminatedWalksSendBuffer[i].clear();
+            }
         }
     }
 });
 }
 
-void RandomWalkManager::printCounts()
+void RandomWalkManager::addWalkToBuffer(int receiver, shared_ptr<RandomWalk> rw)
 {
-    int activeWalkCount = 0;
-    int terminatedWalkCount = 0;
-    for (int i = 0; i < activeWalks.size(); i++)
+    if (rw->terminated)
     {
-        std::cout << "tid #" << i << ": (activeWalks="<< activeWalks[i]->size() << ", terminatedWalks=" << terminatedWalks[i]->size() << std::endl;
-        activeWalkCount += activeWalks[i]->size();
-        terminatedWalkCount += terminatedWalks[i]->size();
+        terminatedWalksSendBuffer[receiver].push_back(rw);
     }
-    std::cout << "totals: (activeWalks=" << activeWalkCount << ", terminatedWalks=" << terminatedWalkCount  << ")" << std::endl;
+    else
+    {
+        activeWalksSendBuffer[receiver].push_back(rw);
+    }
+}
+
+void RandomWalkManager::addWalkToBuffer(shared_ptr<RandomWalk> rw)
+{
+    if (cpg->pointInGridRange(rw->p))
+    {
+        // determine the row and column where random walk is located
+        addWalkToBuffer(cpg->getBlockId(rw->p), rw);
+    }
+    else
+    {
+        // just push back into parent's queue, will need to do real closest point queries
+        addWalkToBuffer(rw->parentId, rw);
+    }
 }

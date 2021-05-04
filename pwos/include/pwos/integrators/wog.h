@@ -26,7 +26,7 @@ public:
 
         // ensures cells are basically width of a pixel
         // precompute grid
-        cellLength = std::min(dx / res.x(), dy / res.y());
+        cellLength = 0.01 * std::min(dx / res.x(), dy / res.y());
         minGridR = sqrt(2) * cellLength;
         cpg = make_shared<ClosestPointGrid>(this->scene, bl, tr, cellLength, nthreads);
     };

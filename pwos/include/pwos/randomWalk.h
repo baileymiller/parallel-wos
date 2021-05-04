@@ -76,9 +76,6 @@ struct RandomWalk
 class RandomWalkQueue
 {
 public:
-    // underlying deque
-    shared_ptr<deque<shared_ptr<RandomWalk>>> q;
-
     /**
      * Default constructor.
      */
@@ -87,27 +84,40 @@ public:
     /**
      * Push a random walk into the back of the queue
      * 
-     * @param rw        random walk
+     * @param rws        random walks
      */
-    void pushBack(shared_ptr<RandomWalk> rw);
+    void pushBackAll(vector<shared_ptr<RandomWalk>> rws);
 
     /**
-     * Pop a random walk from the front of the queue.
+     * Pop all random walks from the front of the queue.
      * 
      * @return random walks in the queue
      */
     vector<shared_ptr<RandomWalk>> popAllFront();
 
-    /**
-     * Gets size of queue.
-     * 
-     * @return the size of the  queue.
-     */
-    int size();
-
 private:
     // lock for queue
-    std::shared_ptr<mutex> lock;
+    std::shared_ptr<mutex> lockA, lockB;
+
+    // underlying deque
+    shared_ptr<deque<shared_ptr<RandomWalk>>> qA, qB;
+
+    /**
+     * Push a random walk into the back of the queue
+     * 
+     * @param q         queue to push into (assumes the caller has a lock)
+     * @param rw        random walk
+     */
+    void pushBackAll(shared_ptr<deque<shared_ptr<RandomWalk>>> &q, vector<shared_ptr<RandomWalk>> rws);
+
+    /**
+     * Pop a random walk from the front of the queue.
+     * 
+     * @param q       queue to pop from (assumes the caller has a lock)
+     * @param rws     vector to populate with random walks 
+     */
+    void popAllFront(shared_ptr<deque<shared_ptr<RandomWalk>>> &q, vector<shared_ptr<RandomWalk>> &rws);
+
 };
 
 /**
@@ -126,11 +136,13 @@ public:
     // thread id that is holding this random walk queue instance.
     size_t tid;
 
-    // walks that are still in progress
+    // queues used to send active or terminated walks back and forth.
     vector<shared_ptr<RandomWalkQueue>> activeWalks;
-
-    // walks that have terminated by reaching a boundary or by being killed in russian roulette
     vector<shared_ptr<RandomWalkQueue>> terminatedWalks;
+    
+    // create buffer of all of the walks we intend to send to other threads
+    vector<vector<shared_ptr<RandomWalk>>> activeWalksSendBuffer;
+    vector<vector<shared_ptr<RandomWalk>>> terminatedWalksSendBuffer;
 
     // indicates how many walks are left
     shared_ptr<int> walksRemaining;
@@ -211,41 +223,34 @@ public:
     bool hasTerminatedWalks();
 
     /**
-     * Pop an active walk of the deque corresponding to tid
+     * Add random walk to a send buffer with destination explicitly defined.
      * 
-     * @return shared pointer for random walk popped from front of queue 
-     */
-    vector<shared_ptr<RandomWalk>> popActiveWalks();
-    
-    /**
-     * Pop a terminated walk of the deque corresponding to tid.
-     * 
-     * @return shared pointer for random walk popped from front of queue
-     */
-    vector<shared_ptr<RandomWalk>> popTerminatedWalks();
-    
-    /**
-     * Push random walk back into a specific queue. Will automatically
-     * determine whether to push into terminated or active queue
-     * 
-     * @param sender     the tid of the thread that is sending the random walk
-     * @param receiver   the tid of the thread that is receiving
+     * @param receiver  destination
      * @param rw        random walk
-     */ 
-    void pushWalk(int sender, int receiver, shared_ptr<RandomWalk> rw);
+     */
+    void addWalkToBuffer(int receiver, shared_ptr<RandomWalk> rw);
 
     /**
-     * Push random walks back into queue. Will automatically determine
-     * which queue to push into based on whether the walk is terminated
-     * or not, based on the parent id, and based on the position of the walk.
+     * Add random walk to a send buffer with destination automatically determined based
+     * on random walk's position and whether it is terminated.
      * 
-     * @param rws       random walks
+     * @param rw        random walk
      */
-    void pushWalks(vector<shared_ptr<RandomWalk>> rw);
+    void addWalkToBuffer(shared_ptr<RandomWalk> rw);
 
     /**
-     * Print counts for all of the queues.
+     * Send buffered random walks to other threads.
      */
-    void printCounts();
+    void sendWalks();
+
+    /**
+     * Receive active random walks from other threads.
+     */
+    vector<shared_ptr<RandomWalk>> recvActiveWalks();
+
+    /**
+     * Receive terminated random walks from other threads.
+     */
+    vector<shared_ptr<RandomWalk>> recvTerminatedWalks();
 
 };
