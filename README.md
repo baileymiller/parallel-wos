@@ -3,7 +3,7 @@ A tool kit for prototyping parallel Walk on Spheres methods.
 
 Boundary Condition | Boundary | Solution to Laplace PDE with Dirichlet Boundary Data
 --- | --- | ---
-![Boundary Condition](https://github.com/baileymiller/parallel-wos/blob/main/images/boundary_condition.jpg?raw=true) | ![Boundary](https://github.com/baileymiller/parallel-wos/blob/main/images/boundary.png?raw=true) | ![Solution](https://github.com/bailerymiller/parallel-wos/blob/main/images/solution.png?raw=true)
+![Boundary Condition](https://github.com/baileymiller/parallel-wos/blob/main/images/boundary_condition.jpg?raw=true) | ![Boundary](https://github.com/baileymiller/parallel-wos/blob/main/images/boundary.png?raw=true) | ![Solution](https://raw.githubusercontent.com/baileymiller/parallel-wos/main/images/solution.png)
 
 ## Usage
 There are two tools that can be used, the parallel walk on spheres renderer (pwos) or the scene genreation python script (generate_scene.py)
