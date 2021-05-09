@@ -2,14 +2,6 @@
 
 #include <pwos/common.h>
 
-enum ArgType
-{
-    INT,
-    STR,
-    VEC4f,
-    VEC2i
-};
-
 /**
  * Helper struct that represents a particular flag.
  */
@@ -116,6 +108,17 @@ public:
      * @returns the vec4f corresponding to id or default value
      */
     Vec4f getVec4f(string id, Vec4f defaultValue);
+
+    /**
+     * Return float corresponding to the flag with id "id".
+     * Throws an error if arg corresponding to id is not a float
+     * 
+     * @param id
+     * @param defaultValue
+     * 
+     * @returns the float corresponding to id or default value
+     */
+    float getFloat(string id, float defaultValue);
 
     /**
      * Returns the string corresponding to the ith non-flagged argument

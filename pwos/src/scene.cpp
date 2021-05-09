@@ -77,13 +77,19 @@ Scene::Scene(string filename)
     std::cout << "Scene loading finished. Loaded " << circles.size() << " circles." << std::endl;
 }
 
-Vec2f Scene::getClosestPoint(Vec2f o, Vec3f &b, int tid)
+Vec2f Scene::getClosestPoint(Vec2f o, Vec3f &b, bool isSetup)
 {
-
     Vec2f closestPoint;
+    StatType statCounterType = isSetup
+        ? StatType::SETUP_CLOSEST_POINT_QUERY
+        : StatType::CLOSEST_POINT_QUERY;
+    Stats::INCREMENT_COUNT(statCounterType);
 
-Stats::INCREMENT_COUNT(StatType::CLOSEST_POINT_QUERY);
-Stats::TIME_THREAD(tid, StatTimerType::CLOSEST_POINT_QUERY, [this, o, &closestPoint, &b]() -> void {
+    StatTimerType statTimerType = isSetup
+        ? StatTimerType::SETUP_CLOSEST_POINT_QUERY
+        : StatTimerType::CLOSEST_POINT_QUERY;
+
+Stats::TIME_THREAD(statTimerType, [this, o, &closestPoint, &b]() -> void {
 
     // TODO: use KD tree to speed this up.
     float dist = std::numeric_limits<float>::max();

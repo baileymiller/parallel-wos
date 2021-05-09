@@ -9,7 +9,7 @@
 #include <pwos/randomWalk.h>
 #include <pwos/progressBar.h>
 
-class MCWoG: public Integrator
+class MCWoGVisual: public Integrator
 {
 public:
     float cellLength, minGridR;
@@ -18,8 +18,9 @@ public:
     int numUsableThreads;
     shared_ptr<ClosestPointGrid> cpg;
     shared_ptr<RandomWalkManager> sharedRWM;
+    shared_ptr<Image> heatMap;
 
-    MCWoG(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1, float cellSize = 1)
+    MCWoGVisual(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1, float cellSize = 1)
     : Integrator("mcwog", scene, res, spp, nthreads)
     {
         // Set the dimensions of the grid/region that each thread is responsible for
@@ -42,6 +43,8 @@ public:
 
         // create closest point grid and random walk manager
         sharedRWM = make_shared<RandomWalkManager>(cpg, window, res, spp, nthreads);
+
+        heatMap = make_shared<Image>(res);
     };
 
     void virtual render() override
@@ -66,7 +69,7 @@ Stats::TIME_THREAD(StatTimerType::TOTAL, [this, &progress, &walksRemaining]() ->
                 for (int i = 0; i < activeRandomWalks.size(); i++)
                 {
                     shared_ptr<RandomWalk> rw = activeRandomWalks[i];
-                    advanceWalk(scene, rw, cpg, sampler, minGridR, rrProb);
+                    advanceWalk(heatMap, scene, rw, cpg, sampler, minGridR, rrProb);
                     rwm->addWalkToBuffer(rw);
                 }
 
@@ -106,10 +109,11 @@ Stats::TIME_THREAD(StatTimerType::TOTAL, [this, &progress, &walksRemaining]() ->
 });
         }
         progress.finish();
+        heatMap->save("mc-wog-heatmap");
     }
 
 private:
-    inline static void advanceWalk(shared_ptr<Scene> scene, shared_ptr<RandomWalk> rw, shared_ptr<ClosestPointGrid> cpg, pcg32 &sampler, float minGridR, float rrProb)
+    inline static void advanceWalk(shared_ptr<Image> heatMap, shared_ptr<Scene> scene, shared_ptr<RandomWalk> rw, shared_ptr<ClosestPointGrid> cpg, pcg32 &sampler, float minGridR, float rrProb)
     {
         Vec2f p = rw->p;
         Vec3f b;
@@ -118,6 +122,15 @@ private:
         if (cpg->pointInGridRange(p))
         {
             cpg->getDistToClosestPoint(p, b, dist, gridDist);
+
+             // mark heat map where grid was touched
+            if (omp_get_thread_num() == 0)
+            {
+                Vec2i g = cpg->getGridCoordinates(p);
+                Vec2f gp = cpg->getGridPointCoordinates(g);
+                Vec2i pxy = getPixelCoords(gp, scene->getWindow(), heatMap->getRes());
+                heatMap->operator()(pxy.x(), pxy.y()) = Vec3f(1.0f, 1.0f, 1.0f);
+            }
 
             // conservative distance to nearest boundary
             R = dist - gridDist;

@@ -31,11 +31,10 @@ public:
      * 
      * @param o     point from which to compute the closest point
      * @param b     boundary condition at the closest point
-     * @param tid   thread that is calling this function, optional
      * 
      * @returns the closest point to "o"
      */
-    Vec2f getClosestPoint(Vec2f o, Vec3f &b, int tid = 0);
+    Vec2f getClosestPoint(Vec2f o, Vec3f &b, bool isSetup = false);
 
     /**
      * Returns the window of the scene window=(bottom left x, bottom left y, top right x, top right y)

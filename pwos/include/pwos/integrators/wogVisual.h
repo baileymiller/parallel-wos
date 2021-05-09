@@ -7,14 +7,15 @@
 #include <pwos/scene.h>
 #include <pwos/closestPointGrid.h>
 
-class WoG: public Integrator
+class WoGVisual: public Integrator
 {
 public:
     float rrProb = 0.99;
     float cellLength, minGridR;
     shared_ptr<ClosestPointGrid> cpg;
+    shared_ptr<Image> heatMap;
 
-    WoG(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1, float cellSize = 1)
+    WoGVisual(Scene scene, Vec2i res = Vec2i(128, 128), int spp = 16, int nthreads = 1, float cellSize = 1)
     : Integrator("wog", scene, res, spp, nthreads)
     {
         // preprocess by computing closest point grid
@@ -29,6 +30,7 @@ public:
         cellLength = cellSize * std::min(dx / res.x(), dy / res.y());
         minGridR = BOUNDARY_EPSILON;
         cpg = make_shared<ClosestPointGrid>(this->scene, bl, tr, cellLength, nthreads);
+        heatMap = make_shared<Image>(res);
     };
 
     void virtual render() override
@@ -42,6 +44,7 @@ public:
             }
             return pixelValue / float(spp);
         });
+        heatMap->save("wog-heatmap");
     }
 
 private:
@@ -56,6 +59,15 @@ private:
             if (cpg->pointInGridRange(p))
             {
                 cpg->getDistToClosestPoint(p, b, dist, gridDist);
+
+                // mark heat map where grid was touched
+                if (omp_get_thread_num() == 0)
+                {
+                    Vec2i g =cpg->getGridCoordinates(p);
+                    Vec2f gp = cpg->getGridPointCoordinates(g);
+                    Vec2i pxy = getPixelCoords(gp, scene->getWindow(), heatMap->getRes());
+                    heatMap->operator()(pxy.x(), pxy.y()) = Vec3f(1.0f, 1.0f, 1.0f);
+                }
 
                 // conservative distance to nearest boundary
                 R = dist - gridDist;

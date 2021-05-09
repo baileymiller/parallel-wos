@@ -60,9 +60,8 @@ void ArgParse::parse(int argc, char* argv[])
                 switch (type)
                 {
                     case ArgType::INT:
-                        numValues = 1;
-                        break;
                     case ArgType::STR:
+                    case ArgType::FLOAT:
                         numValues = 1;
                         break;
                     case ArgType::VEC4f:
@@ -102,6 +101,13 @@ int ArgParse::getInt(string id, int defaultValue)
     THROW_IF(flags.count(id) == 0, "Flag with id " + id + " is not registered with argparse instance.");
     THROW_IF(flags[id].type != ArgType::INT, "Flag with id " + id + " is not type int.");
     return flags[id].isSet ? std::stoi(flags[id].values[0]) : defaultValue;
+}
+
+float ArgParse::getFloat(string id, float defaultValue)
+{
+    THROW_IF(flags.count(id) == 0, "Flag with id " + id + " is not registered with argparse instance.");
+    THROW_IF(flags[id].type != ArgType::FLOAT, "Flag with id " + id + " is not type float.");
+    return flags[id].isSet ? std::stof(flags[id].values[0]) : defaultValue;
 }
 
 string ArgParse::getStr(string id, string defaultValue)
