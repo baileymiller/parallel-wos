@@ -5,6 +5,9 @@
 class Stats
 {
 public:
+    // total time to create grid
+    inline static fsec gridCreationTime;
+
     // the total run time
     inline static fsec totalTime;
 
@@ -26,17 +29,24 @@ public:
     // how long each thread spends doing a closest point query
     inline static vector<fsec> threadCPQTime;
 
-    inline static int numClosestPointQueries = 0;
+    // how long each thread spends doing a closest point queries during setup
+    inline static vector<fsec> threadCPQSetupTime;
 
-    inline static int numGridQueries = 0;
+    inline static int numGridPoints;
 
-    static void reset();
+    inline static vector<int> numClosestPointQueries;
 
-    static void initTimers(int nthreads = 1);
+    inline static vector<int> numClosestPointQueriesSetup;
 
-    static void TIME_THREAD(size_t tid, StatTimerType type, FunctionBlock f);
+    inline static vector<int> numGridQueries;
+
+    static void init(int nthreads = 1);
+
+    static void TIME_THREAD(StatTimerType type, FunctionBlock f);
 
     static void TIME(StatTimerType type, FunctionBlock f);
+
+    static void SET_COUNT(StatType type, int val);
 
     static void INCREMENT_COUNT(StatType type);
 

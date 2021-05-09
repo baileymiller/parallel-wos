@@ -118,8 +118,8 @@ public:
      */
     inline int getBlockId(Vec2i g, Vec2i &b) const
     {
-        b.x() = floor(g.x() / blockWidth);
-        b.y() = floor(g.y() / blockHeight);
+        b.x() = floor(float(g.x()) / blockWidth);
+        b.y() = floor(float(g.y()) / blockHeight);
         int bid = b.x() + b.y() * nBlockCols;
         THROW_IF(bid < 0 || bid >= nBlocks, "(3) Invalid grid point, not in range of the grid: " + to_string(g.x()) + ", " + to_string(g.y()) + " (Block id: " + to_string(bid) + ")");
         return bid;
@@ -170,8 +170,8 @@ public:
     inline Vec2f getGridPointCoordinates(Vec2i g) const
     {
         return Vec2f(
-            cellLength * g.x() + bl.x(),
-            cellLength * g.y() + bl.y()
+            cellLength * float(g.x()) + bl.x(),
+            cellLength * float(g.y()) + bl.y()
         );
     }
 
@@ -183,9 +183,8 @@ public:
      * @param b         the boundary condition at the closest point
      * @param dist      distance to the closest point from the grid point
      * @param gridDist  distance to the grid point used to compute the nearest point distance
-     * @param tid       the thread that is calling this function
      * 
      * @return true if able to lookup closest point, otherwise false
      */
-    bool getDistToClosestPoint(Vec2f p, Vec3f &b, float &dist, float &gridDist, int tid = 0) const;
+    bool getDistToClosestPoint(Vec2f p, Vec3f &b, float &dist, float &gridDist) const;
 };

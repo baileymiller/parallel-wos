@@ -71,7 +71,7 @@ public:
      * @returns 2-D pixel coordinates
      */
     Vec2i getPixelCoordinates(int i);
-
+    
 private:
     // pixel data laid out linearly
     std::vector<Vec3f> data;

@@ -62,8 +62,9 @@ void RandomWalkQueue::pushBackAll(vector<shared_ptr<RandomWalk>> rws)
         pushBackAll(qA, rws);
         lockA->unlock();
     }
-    else if (lockB->try_lock())
+    else
     {
+        lockB->lock();
         pushBackAll(qB, rws);
         lockB->unlock();
     }
@@ -181,7 +182,7 @@ void RandomWalkManager::setThreadId(size_t tid)
 vector<shared_ptr<RandomWalk>> RandomWalkManager::recvActiveWalks()
 {
     vector<shared_ptr<RandomWalk>> rws;
-Stats::TIME_THREAD(tid, StatTimerType::RECV_WALKS, [this, &rws]() -> void {
+Stats::TIME_THREAD(StatTimerType::RECV_WALKS, [this, &rws]() -> void {
     for (size_t sender = 0; sender < nthreads; sender++)
     {
         vector<shared_ptr<RandomWalk>> rwsFromSender;
@@ -210,7 +211,7 @@ Stats::TIME_THREAD(tid, StatTimerType::RECV_WALKS, [this, &rws]() -> void {
 vector<shared_ptr<RandomWalk>> RandomWalkManager::recvTerminatedWalks()
 {
     vector<shared_ptr<RandomWalk>> rws;
-Stats::TIME_THREAD(tid, StatTimerType::RECV_WALKS, [this, &rws]() -> void {
+Stats::TIME_THREAD(StatTimerType::RECV_WALKS, [this, &rws]() -> void {
     for (size_t sender = 0; sender < nthreads; sender++)
     {
         vector<shared_ptr<RandomWalk>> rwsFromSender;
@@ -239,7 +240,7 @@ Stats::TIME_THREAD(tid, StatTimerType::RECV_WALKS, [this, &rws]() -> void {
 
 void RandomWalkManager::sendWalks()
 {
-Stats::TIME_THREAD(tid, StatTimerType::SEND_WALKS, [this]() -> void {
+Stats::TIME_THREAD(StatTimerType::SEND_WALKS, [this]() -> void {
     for (int i = 0; i < nthreads; i++)
     {
         if (tid != i)

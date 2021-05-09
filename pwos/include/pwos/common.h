@@ -77,6 +77,15 @@ inline void WARN_IF(bool cond, string message)
 //========================//
 // Types                  //
 //========================//
+enum ArgType
+{
+    INT,
+    STR,
+    VEC4f,
+    VEC2i,
+    FLOAT
+};
+
 enum RelativePositionType
 {
     LEFT,
@@ -89,7 +98,9 @@ enum RelativePositionType
 enum IntegratorType
 {
     MCWOG,
+    MCWOG_VISUAL,
     WOG,
+    WOG_VISUAL,
     GRID_VISUAL,
     DISTANCE,
     WOS
@@ -97,7 +108,9 @@ enum IntegratorType
 
 const map<string, IntegratorType> StrToIntegratorType({
     { "mcwog", IntegratorType::MCWOG },
+    { "mcwogviz", IntegratorType::MCWOG_VISUAL },
     { "wog", IntegratorType::WOG },
+    { "wogviz", IntegratorType::WOG_VISUAL },
     { "gridviz", IntegratorType::GRID_VISUAL },
     { "dist", IntegratorType::DISTANCE },
     { "wos", IntegratorType::WOS }
@@ -106,16 +119,20 @@ const map<string, IntegratorType> StrToIntegratorType({
 enum class StatTimerType
 {
     TOTAL,
+    GRID_CREATION,
     SEND_WALKS,
     RECV_WALKS,
     CLOSEST_POINT_GRID,
     CLOSEST_POINT_QUERY,
+    SETUP_CLOSEST_POINT_QUERY,
     SETUP
 };
 
 enum class StatType
 {
+    GRID_POINTS,
     CLOSEST_POINT_QUERY,
+    SETUP_CLOSEST_POINT_QUERY,
     GRID_QUERY
 };
 
@@ -147,7 +164,16 @@ inline Vec2f getXYCoords(Vec2i pixel, Vec4f window, Vec2i res)
     );
 }
 
-// stats/profiling
+inline Vec2i getPixelCoords(Vec2f p, Vec4f window, Vec2i res)
+{
+    float dx = window[2] - window[0];
+    float dy = window[3] - window[1];
+    float x = p.x() - window[0];
+    float y = p.y() - window[1];
+    int ix = (x / dx) * res.x();
+    int iy = res.y() - (y / dy) * res.y() - 1;
+    return Vec2i(ix, iy);
+}
 
 #define CLOSEST_POINT_QUERIES "closest_point_queries"
 #define CLOSEST_POINT_GRID_QUERIES "closest_point_grid_queries"
